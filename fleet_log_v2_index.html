@@ -1,0 +1,2873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fleet &amp; Tools Log</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --yellow: #FFC107;
+    --yellow-dark: #C79100;
+    --bg: #FAFAFA;
+    --text: #222;
+    --border: #DDD;
+    --danger: #C0392B;
+    --ok: #2E7D32;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  header {
+    background: var(--yellow); padding: 14px 16px; display: flex;
+    align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .who { font-size: 13px; }
+  button {
+    background: var(--yellow-dark); color: #fff; border: none; border-radius: 6px;
+    padding: 10px 14px; font-size: 14px; cursor: pointer;
+  }
+  button.secondary { background: #666; }
+  button.danger { background: var(--danger); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  input, select, textarea {
+    width: 100%; padding: 10px; margin: 4px 0 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 15px; font-family: inherit;
+  }
+  label { font-size: 13px; font-weight: 600; color: #555; }
+  .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+  .card {
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; margin-bottom: 14px;
+  }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    background: #EEE; color: #333; padding: 8px 12px; border-radius: 20px; font-size: 13px;
+  }
+  .tab-btn.active { background: var(--yellow-dark); color: #fff; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  .msg { padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 14px; }
+  .msg.error { background: #FDECEA; color: var(--danger); }
+  .msg.ok { background: #E8F5E9; color: var(--ok); }
+  .muted { color: #888; font-size: 13px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #eee; }
+  .pill.admin { background: #FFF3CD; color: #7A5B00; }
+  .pill.warning { background: #FFF3CD; color: #7A5B00; }
+  .pill.done { background: #E8F5E9; color: var(--ok); }
+  .pill.urgent { background: #FDECEA; color: var(--danger); }
+  input[type="checkbox"] { width: auto; margin: 0 6px 0 0; vertical-align: middle; }
+  .checkbox-row { display: flex; align-items: center; font-size: 14px; color: var(--text); margin: 4px 0 14px; font-weight: 400; }
+  .stop-card { background: #FAFAFA; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .stop-card strong { font-size: 14px; }
+  .dvir-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .dvir-item:last-child { border-bottom: none; }
+  .dvir-label { font-size: 14px; flex: 1; }
+  .dvir-buttons { display: flex; gap: 6px; flex-shrink: 0; }
+  .dvir-btn { padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: var(--text); cursor: pointer; }
+  .dvir-btn.ok.selected { background: var(--ok); color: #fff; border-color: var(--ok); }
+  .dvir-btn.na.selected { background: #777; color: #fff; border-color: #777; }
+  .dvir-btn.defect.selected { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .sig-pad { width: 100%; max-width: 600px; height: 140px; border: 1px solid var(--border); border-radius: 8px; touch-action: none; background: #fff; display: block; margin-bottom: 10px; }
+  .banner-grounded { border-color: var(--danger) !important; }
+  .banner-grounded h2 { color: var(--danger); }
+  .banner-review { border-color: var(--yellow-dark) !important; }
+  .attn-card { border-left: 4px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; background: #FAFAFA; }
+  .attn-card.urgent { border-left-color: var(--danger); background: #FDECEA; }
+  .attn-card.warning { border-left-color: var(--yellow-dark); background: #FFF8E1; }
+  .attn-card strong { display: block; font-size: 14px; }
+  .attn-card span { font-size: 13px; color: #555; }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
+    display: flex; align-items: flex-start; justify-content: center;
+    overflow-y: auto; padding: 20px 12px;
+  }
+  .modal-card {
+    background: #fff; border-radius: 10px; padding: 20px; max-width: 700px;
+    width: 100%; margin: 0 auto;
+  }
+  .dvir-report h1 { font-size: 18px; margin: 0 0 2px; }
+  .dvir-report .subhead { font-size: 11px; color: #666; margin: 0 0 14px; }
+  .dvir-report .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 14px; margin-bottom: 14px; }
+  .dvir-report .meta-grid div span { color: #666; font-size: 12px; display: block; }
+  .dvir-report table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 14px; }
+  .dvir-report table td, .dvir-report table th { border-bottom: 1px solid var(--border); padding: 5px 4px; text-align: left; }
+  .dvir-report .sig-block { margin-top: 10px; }
+  .dvir-report .sig-block img { max-width: 300px; display: block; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .dvir-report .cert-section { margin-top: 16px; padding-top: 12px; border-top: 2px solid var(--border); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ============================= LOGIN SCREEN ============================= -->
+<div id="loginScreen" class="container" style="max-width:380px; padding-top:60px;">
+  <div class="card">
+    <h1 style="margin-top:0;">Fleet &amp; Tools Log</h1>
+    <p class="muted">Mobile Onsite Handyman Services</p>
+    <div id="loginMsg"></div>
+    <label>Employee Number</label>
+    <input id="loginEmployeeNumber" inputmode="numeric" autocomplete="username" placeholder="e.g. 17412" />
+    <label>PIN</label>
+    <input id="loginPin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" />
+    <button id="loginBtn" style="width:100%;">Log In</button>
+  </div>
+</div>
+
+<!-- ============================== MAIN APP ============================== -->
+<div id="appScreen" hidden>
+  <header>
+    <h1>🚚 Fleet &amp; Tools Log</h1>
+    <div class="who">
+      <span id="whoName"></span> <span id="whoRole" class="pill"></span>
+      &nbsp; <button id="logoutBtn" class="secondary">Log Out</button>
+    </div>
+  </header>
+
+  <div class="tabs" id="tabBar"></div>
+
+  <div class="container">
+    <div id="globalMsg"></div>
+
+    <!-- Dashboard -->
+    <div id="tab-dashboard" class="tab-panel">
+      <div class="card">
+        <h2 style="margin-top:0;">Needs Attention</h2>
+        <div id="attentionList"><p class="muted">Checking...</p></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Vehicles</h2>
+        <table id="dashboardVehicleTable">
+          <thead><tr><th>Unit</th><th>Type</th><th>Current Mileage</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Vehicles -->
+    <div id="tab-vehicles" class="tab-panel" hidden>
+      <div class="card">
+        <h2 style="margin-top:0;">Add a Vehicle</h2>
+        <div id="vehicleMsg"></div>
+        <label>Unit ID (e.g. "Truck 4", "Van 2", "Box Truck 1")</label>
+        <input id="vehicleUnitId" />
+        <label>Type</label>
+        <select id="vehicleType">
+          <option value="car">Car</option>
+          <option value="van">Van</option>
+          <option value="box_truck">Box Truck</option>
+          <option value="truck">Truck</option>
+          <option value="semi">Semi / 18-Wheeler</option>
+          <option value="trailer">Trailer</option>
+        </select>
+        <div class="row">
+          <div><label>Make</label><input id="vehicleMake" /></div>
+          <div><label>Model</label><input id="vehicleModel" /></div>
+          <div><label>Year</label><input id="vehicleYear" inputmode="numeric" /></div>
+        </div>
+        <button id="addVehicleBtn">Add Vehicle</button>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">All Vehicles</h2>
+        <table id="vehicleTable">
+          <thead><tr><th>Unit</th><th>Type</th><th>Make/Model</th><th>Year</th><th>Mileage</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Employees (admin only) -->
+    <div id="tab-employees" class="tab-panel" hidden>
+      <div class="card">
+        <h2 style="margin-top:0;">Add an Employee</h2>
+        <div id="employeeMsg"></div>
+        <label>Employee Number</label>
+        <input id="newEmployeeNumber" inputmode="numeric" />
+        <label>Name</label>
+        <input id="newEmployeeName" />
+        <label>PIN (at least 4 digits)</label>
+        <input id="newEmployeePin" inputmode="numeric" />
+        <label>Role</label>
+        <select id="newEmployeeRole"><option value="employee">Employee</option><option value="admin">Admin</option></select>
+        <button id="addEmployeeBtn">Create Login</button>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">All Employees</h2>
+        <p class="muted">Cycle Start Date sets one actual date that employee's 7-day Hours of Service duty cycle counts from — it repeats every 7 days from there. It doesn't have to match anyone else's; just pick any date that falls on the first day of that driver's own cycle. Requires CDL is just this person's usual default — it pre-checks (or unchecks) the CDL box on their Log Your Hours form, since most people drive the same kind of vehicle most days. It can always be changed for a single day right on that form if they end up driving something different — that's what actually decides the limit for that day. A driver needs a CDL if the vehicle's weight requires one, if it's placarded for hazmat, or if it's designed to carry 16 or more people including the driver.</p>
+        <table id="employeeTable">
+          <thead><tr><th>#</th><th>Name</th><th>Role</th><th>Active</th><th>Cycle Start Date</th><th>Default CDL</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Hours of Service Policy</h2>
+        <p class="muted">This is your company's own policy choice, not something DOT requires this app to enforce — turn it off if your drivers don't need to sign their hours. (A signature is exactly the standard full Records of Duty Status are held to under 49 CFR &sect;395.8(f)(7), but it isn't spelled out in the short-haul exemption itself, so it's your call.)</p>
+        <div id="hosPolicyMsg"></div>
+        <div class="checkbox-row"><input type="checkbox" id="hosRequireSignatureToggle" /> Require a driver signature before a day's hours can be saved</div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Daily Backups</h2>
+        <p class="muted">A complete snapshot of your company's data is saved automatically every 24 hours. The last 30 days are always kept. You can also grab one right now, or download any day's snapshot below to save on your own computer, Google Drive, or wherever you keep your own copies.</p>
+        <div id="backupMsg"></div>
+        <button type="button" id="backupNowBtn">Back Up Now</button>
+        <table id="backupTable">
+          <thead><tr><th>Date</th><th>Size</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Maintenance Intervals (admin only) -->
+    <div id="tab-intervals" class="tab-panel" hidden>
+      <div class="card">
+        <h2 style="margin-top:0;">Set a Maintenance Interval</h2>
+        <div id="intervalMsg"></div>
+        <label>Vehicle</label>
+        <select id="intervalVehicle"></select>
+        <label>Category</label>
+        <select id="intervalCategory"></select>
+        <input id="intervalCategoryOther" placeholder="Type the new category" hidden />
+        <div class="row">
+          <div><label id="intervalMilesLabel">Every X Miles (optional)</label><input id="intervalMiles" inputmode="numeric" /></div>
+          <div><label id="intervalDaysLabel">Every X Days (optional)</label><input id="intervalDays" inputmode="numeric" /></div>
+        </div>
+        <div class="row" id="intervalSmogDaysWrap" hidden>
+          <div><label>Smog — Every X Days</label><input id="intervalSmogDays" inputmode="numeric" /></div>
+          <div></div>
+        </div>
+        <p class="muted" id="intervalHint" style="margin-top:-6px;"></p>
+        <button id="addIntervalBtn">Save Interval</button>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Current Intervals</h2>
+        <table id="intervalTable">
+          <thead><tr><th>Vehicle</th><th>Category</th><th>Rule</th><th>Next Due</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Mileage -->
+    <div id="tab-mileage" class="tab-panel" hidden>
+      <div class="card">
+        <label>Vehicle</label>
+        <select id="mileageVehicle"></select>
+      </div>
+
+      <div class="card" id="mileageStartCard" hidden>
+        <h2 style="margin-top:0;">Start Today's Log</h2>
+        <div id="mileageStartMsg"></div>
+        <label>Starting Mileage</label>
+        <input id="mileageStartInput" inputmode="numeric" />
+        <button id="startMileageLogBtn" style="width:100%;">Start Today's Log</button>
+      </div>
+
+      <div class="card" id="mileageEditCard" hidden>
+        <h2 style="margin-top:0;" id="mileageEditTitle">Today's Log</h2>
+        <p class="muted" id="mileageEditSub"></p>
+        <div id="mileageEditMsg"></div>
+
+        <label>Stops so far today</label>
+        <div id="mileageStopsList"></div>
+
+        <label>Add a Stop</label>
+        <input id="stopName" placeholder="Name (e.g. Smith residence)" />
+        <input id="stopAddress" placeholder="Address" />
+        <input id="stopCity" placeholder="City" />
+        <input id="stopPurpose" placeholder="Business purpose (e.g. gutter repair)" />
+        <button id="addStopBtn" class="secondary" style="width:100%;">Add Stop</button>
+
+        <hr style="border:none; border-top:1px solid var(--border); margin:18px 0;">
+
+        <label>Ending Mileage (fill in when you're done for the day)</label>
+        <input id="mileageEndInput" inputmode="numeric" />
+        <div class="checkbox-row"><input type="checkbox" id="mileagePersonal" /> This day was personal use, not business</div>
+        <label>Notes</label>
+        <input id="mileageNotes" />
+        <button id="saveMileageLogBtn" style="width:100%;">Save</button>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Recent Days</h2>
+        <table id="recentMileageTable">
+          <thead><tr><th>Date</th><th>Vehicle</th><th>Miles</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Fuel -->
+    <div id="tab-fuel" class="tab-panel" hidden>
+      <div class="card">
+        <label>Vehicle</label>
+        <select id="fuelVehicle"></select>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Log a Fill-Up</h2>
+        <div id="fuelMsg"></div>
+        <label>Date</label>
+        <input id="fuelDate" type="date" />
+        <label>Amount ($)</label>
+        <input id="fuelAmount" inputmode="decimal" />
+        <label>Gallons</label>
+        <input id="fuelGallons" inputmode="decimal" />
+        <label>Odometer Reading (look at the odometer right now and type it in)</label>
+        <p class="muted" id="fuelLastKnownMileage" style="margin-top:-6px;"></p>
+        <input id="fuelOdometer" inputmode="numeric" placeholder="e.g. 48213" />
+        <label>Notes</label>
+        <input id="fuelNotes" />
+        <button id="addFuelBtn" style="width:100%;">Save Fill-Up</button>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Recent Fill-Ups</h2>
+        <table id="fuelTable">
+          <thead><tr><th>Date</th><th>$</th><th>Gal</th><th>Odometer</th><th>Approx MPG</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Maintenance -->
+    <div id="tab-maintenance" class="tab-panel" hidden>
+      <div class="card">
+        <label>Vehicle</label>
+        <select id="maintVehicle"></select>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Log a Service</h2>
+        <div id="maintLogMsg"></div>
+        <label>Category (e.g. "Oil Change", "Transmission Service")</label>
+        <select id="maintCategory"></select>
+        <input id="maintCategoryOther" placeholder="Type the new category" hidden />
+        <label id="maintDateLabel">Date</label>
+        <input id="maintDate" type="date" />
+        <div id="maintSmogDateWrap" hidden>
+          <label>Smog Date (only if a smog check was done this visit)</label>
+          <input id="maintSmogDate" type="date" />
+        </div>
+        <label>Mileage</label>
+        <input id="maintMileage" inputmode="numeric" />
+        <label>Cost ($, optional)</label>
+        <input id="maintCost" inputmode="decimal" />
+        <label>Notes</label>
+        <input id="maintNotes" />
+        <button id="addMaintLogBtn" style="width:100%;">Save Service Entry</button>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Service History</h2>
+        <table id="maintHistoryTable">
+          <thead><tr><th>Date</th><th>Category</th><th>Mileage</th><th>Cost</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Parts &amp; Specs</h2>
+        <div id="partsMsg"></div>
+        <label>Type</label>
+        <select id="partType">
+          <option value="tire">Tire</option>
+          <option value="filter">Filter</option>
+          <option value="battery">Battery</option>
+          <option value="other">Other</option>
+        </select>
+        <label>Description (e.g. "Front Left Tire", "Oil Filter")</label>
+        <input id="partDescription" />
+        <div class="row">
+          <div><label>Part Number</label><input id="partNumber" /></div>
+          <div><label>Spec (size, CCA, etc.)</label><input id="partSpec" /></div>
+        </div>
+        <label>Notes</label>
+        <input id="partNotes" />
+        <button id="addPartBtn" class="secondary" style="width:100%;">Add Part</button>
+
+        <table id="partsTable" style="margin-top:14px;">
+          <thead><tr><th>Type</th><th>Description</th><th>Part #</th><th>Spec</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Inspections (DVIR) -->
+    <div id="tab-inspections" class="tab-panel" hidden>
+      <div class="card" id="inspVehiclePickerCard">
+        <label>Vehicle</label>
+        <select id="inspVehicle"></select>
+      </div>
+
+      <div id="inspGroundedBanner" class="card banner-grounded" hidden>
+        <h2 style="margin-top:0;">Grounded — Not Safe to Drive</h2>
+        <div id="inspGroundedDetails"></div>
+        <div id="inspCertifyForm" hidden>
+          <label>Outcome</label>
+          <div class="checkbox-row"><input type="radio" name="certOutcome" id="certOutcomeCorrected" value="corrected" /><label for="certOutcomeCorrected" style="font-weight:400;">Above defects corrected</label></div>
+          <div class="checkbox-row"><input type="radio" name="certOutcome" id="certOutcomeNotNeeded" value="not_needed" /><label for="certOutcomeNotNeeded" style="font-weight:400;">Above defects do not need to be corrected (safe to operate)</label></div>
+          <label>Certification Notes (what was fixed, or why it's safe to operate)</label>
+          <input id="certNotes" placeholder="e.g. Brake pads replaced" />
+          <label>Sign to Certify</label>
+          <canvas id="certSigPad" width="600" height="140" class="sig-pad"></canvas>
+          <div class="row">
+            <button type="button" class="secondary" id="certSigClear">Clear Signature</button>
+            <button type="button" id="certifyBtn">Certify Vehicle</button>
+          </div>
+          <div id="certifyMsg"></div>
+        </div>
+      </div>
+
+      <div id="inspReviewBanner" class="card banner-review" hidden>
+        <h2 style="margin-top:0;">Review Before You Drive</h2>
+        <div id="inspReviewDetails"></div>
+        <button type="button" id="ackReviewBtn">I Reviewed This</button>
+        <div id="reviewAckMsg"></div>
+      </div>
+
+      <div class="card" id="inspFormCard" hidden>
+        <h2 style="margin-top:0;">Today's Inspection — Driver's Vehicle Inspection Report</h2>
+        <p class="muted" id="inspTimestamp"></p>
+        <div id="inspMsg"></div>
+        <div id="inspAlreadyDone" class="muted" hidden></div>
+
+        <div id="inspMetaWrap">
+          <div class="row">
+            <div><label>Vehicle #</label><input id="inspTruckNumber" /></div>
+            <div><label>Trailer/Equipment #</label><input id="inspTrailerNumber" /></div>
+          </div>
+          <label>Odometer Reading</label>
+          <input id="inspOdometer" inputmode="numeric" placeholder="Look at the odometer right now" />
+        </div>
+
+        <p class="muted" id="inspChecklistHint" style="margin-bottom:4px;">Tap OK, N/A, or Defect for every line — give details below under Remarks for anything marked Defect.</p>
+        <div id="inspChecklist"></div>
+
+        <div id="inspNotesWrap">
+          <label>Remarks (details on any defective item)</label>
+          <textarea id="inspNotes" rows="4" placeholder="Anything else worth noting"></textarea>
+        </div>
+
+        <div id="inspAttestWrap">
+          <div class="checkbox-row"><input type="checkbox" id="inspMaterialsSecure" /><label for="inspMaterialsSecure" style="font-weight:400;">All materials &amp; equipment are secure and ready to travel</label></div>
+          <div class="checkbox-row"><input type="checkbox" id="inspSafeReady" /><label for="inspSafeReady" style="font-weight:400;">This vehicle is safe and ready for work</label></div>
+        </div>
+
+        <div id="inspSignWrap">
+          <label>Your Signature — sign to certify this report is accurate</label>
+          <canvas id="inspSigPad" width="600" height="140" class="sig-pad"></canvas>
+          <div class="row">
+            <button type="button" class="secondary" id="inspSigClear">Clear Signature</button>
+            <button type="button" id="submitInspectionBtn" style="width:100%;">Sign &amp; Submit Inspection</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Recent Inspections</h2>
+        <table id="inspHistoryTable">
+          <thead><tr><th>Date &amp; Time</th><th>Result</th><th>By</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Hours of Service -->
+    <div id="tab-hos" class="tab-panel" hidden>
+      <div class="card">
+        <h2 style="margin-top:0;">Log Your Hours</h2>
+        <p class="muted">For the DOT 150 air-mile radius short-haul exemption — a simplified on-duty time record instead of a full driver's log.</p>
+        <div id="hosMsg"></div>
+        <label>Date</label>
+        <input id="hosDate" type="date" />
+        <label>On-Duty Start Time</label>
+        <input id="hosStart" type="time" />
+        <label>On-Duty End Time</label>
+        <input id="hosEnd" type="time" />
+        <div class="checkbox-row"><input type="checkbox" id="hosWithinRadius" checked /> Stayed within 150 air miles of home base this day</div>
+        <div class="checkbox-row"><input type="checkbox" id="hosRequiresCdl" checked /> This day required a CDL (vehicle weight, hazmat, or 16+ passenger capacity)</div>
+        <p class="muted" id="hosDayLimitHint" style="margin-top:-6px;"></p>
+        <label>Notes</label>
+        <input id="hosNotes" />
+        <label>Sign to certify this day's hours are accurate</label>
+        <p class="muted" id="hosSigRequirementNote" style="margin-top:-6px;"></p>
+        <canvas id="hosSigPad" width="600" height="140" class="sig-pad"></canvas>
+        <div class="row">
+          <button type="button" class="secondary" id="hosSigClear">Clear Signature</button>
+        </div>
+        <button id="saveHosBtn" style="width:100%;">Save</button>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">This Week's Duty Cycle</h2>
+        <p class="muted" id="hosCycleRange"></p>
+        <p class="muted" id="hosDailyLimitNote"></p>
+        <p id="hosCycleSummary" style="font-weight:600;"></p>
+        <table id="hosWeekTable">
+          <thead><tr><th>Date</th><th>On Duty</th><th>Hours</th><th>Radius</th><th>Status</th><th>Signed</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Power Tools -->
+    <div id="tab-tools" class="tab-panel" hidden>
+      <div class="card">
+        <label>Location</label>
+        <select id="toolsLocation"></select>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Add a Tool</h2>
+        <div id="toolMsg"></div>
+        <label>Name</label>
+        <input id="toolName" placeholder="e.g. Cordless Drill" />
+        <label>Serial Number (optional)</label>
+        <input id="toolSerial" placeholder="e.g. DW-4471203" />
+        <label>Status</label>
+        <select id="toolStatus">
+          <option value="ok">OK</option>
+          <option value="needs_repair">Needs Repair</option>
+          <option value="missing">Missing / Lost</option>
+        </select>
+        <label>Notes</label>
+        <input id="toolNotes" />
+        <button id="addToolBtn" style="width:100%;">Add Tool</button>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Tools Here</h2>
+        <table id="toolsTable">
+          <thead><tr><th>Name</th><th>Serial #</th><th>Status</th><th>Notes</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Supplies -->
+    <div id="tab-supplies" class="tab-panel" hidden>
+      <div class="card">
+        <label>Location</label>
+        <select id="suppliesLocation"></select>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Add a Supply</h2>
+        <div id="supplyMsg"></div>
+        <label>Name</label>
+        <input id="supplyName" placeholder="e.g. Zip Ties" />
+        <label>Quantity</label>
+        <input id="supplyQuantity" inputmode="numeric" />
+        <label>Notes</label>
+        <input id="supplyNotes" />
+        <button id="addSupplyBtn" style="width:100%;">Add Supply</button>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Supplies Here</h2>
+        <table id="suppliesTable">
+          <thead><tr><th>Name</th><th>Qty</th><th>Notes</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Request a Restock</h2>
+        <p class="muted">See something running low or out — on any vehicle, or at the shop? Add it here. An admin will mark it either Reorder (buying more) or Will Call (already in stock, just needs picking up).</p>
+        <div id="restockMsg"></div>
+        <label>Item Name</label>
+        <input id="restockItemName" placeholder="e.g. Zip Ties" />
+        <label>Quantity Needed (optional)</label>
+        <input id="restockQty" />
+        <label>Notes (optional)</label>
+        <textarea id="restockNotes" rows="2"></textarea>
+        <button id="addRestockBtn" style="width:100%;">Add to Restock List</button>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Restock List</h2>
+        <table id="restockTable">
+          <thead><tr><th>Item</th><th>Qty</th><th>Requested By</th><th>From</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- How To Use -->
+    <div id="tab-howto" class="tab-panel" hidden>
+      <div class="card">
+        <h2 style="margin-top:0;">Dashboard</h2>
+        <p>The Dashboard is the first thing you see when you log in. The Needs Attention box at the top is your at-a-glance list — anything that needs a person to actually do something shows up there automatically: a grounded vehicle waiting on sign-off, maintenance or Registration/Smog that's overdue or coming up in the next two weeks, a tool that's broken or missing, a supply that's run out, or a restock request nobody's acted on yet. Red means it's already overdue or urgent, yellow means it's coming up soon. If it just says "All clear," there's nothing to worry about right now. You never have to go looking for this — it updates itself every time you or anyone else logs something in the app.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Mileage</h2>
+        <p>Every morning, tap Mileage. If you're just starting your day, the app already knows your starting miles — you don't have to type it in. As you make stops, tap Add Stop and type where you went. At the end of the day, type in your ending miles and you're done.</p>
+        <p>Forgot to finish yesterday? Look under Recent Days at the bottom of the Mileage tab and tap Edit next to that day — it'll open right back up so you can finish it.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Fuel</h2>
+        <p>Tap Fuel, pick the vehicle you're fueling up, and type in the dollar amount and how many gallons. Then look at the odometer right now and type in the real number — the app doesn't know your mileage on its own, so this box always starts empty on purpose. Tap Save Fill-Up and you're done.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Maintenance</h2>
+        <p>Tap Maintenance, pick the vehicle, and choose what was done from the dropdown — like "Oil Change" or "Transmission Service" — along with the date and mileage. If it's something new that's not in the list yet, choose "Other" and type it in. Tap Save Service Entry and it's added to that vehicle's history. If it matches a service interval the admin already set up, the "next due" date updates itself automatically.</p>
+        <p>The Parts &amp; Specs list on the same tab is just a reference sheet — tire sizes, filter part numbers, battery specs — so anyone can look up what a vehicle takes without having to ask.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Inspections</h2>
+        <p>Tap Inspections, pick your vehicle, and fill in Vehicle # and Trailer/Equipment # — both are required, this report has to be able to stand on its own for DOT records. Look at the odometer and type in that number too.</p>
+        <p>Then go down the checklist one line at a time — tap OK, N/A, or Defect for every single item, there's no "mark all OK" shortcut on purpose. Use N/A for anything this vehicle just doesn't have (like a fifth wheel on a van that doesn't pull a trailer). At the bottom, check the two boxes if they're true ("materials secure" and "safe and ready for work") — if the vehicle really isn't safe and ready, leave that box unchecked. Sign your name on the box with your finger and tap Sign &amp; Submit. The date and time get stamped on automatically.</p>
+        <p>If you find a defect, mark it and sign like normal — that's your job done, you reported it. The vehicle then can't be used again until an admin signs off that it's fixed or doesn't need to be, with their own signature. If you're the next person to use a vehicle that had a defect, you'll see what happened and have to tap "I Reviewed This" before you can do your own inspection — just a heads up, not extra work.</p>
+        <p>Any inspection can be pulled up as its own standalone report — tap "View" next to it in Recent Inspections, or "View Full Report" on the grounded/review banners. From there you can print it or save it as a PDF, with the vehicle and trailer numbers, odometer, full checklist, remarks, signature, and the date and time all on one page — a real record, not just something trapped in the app.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Hours of Service</h2>
+        <p>This tracks the DOT 150 air-mile radius short-haul exemption — a simplified on-duty time record instead of a full driver's log. Tap Hours of Service, pick the date, and enter your on-duty start and end time for that day (when you clocked in and out) — the app works out the hours on its own. Check the box confirming you stayed within 150 air miles of home base that day.</p>
+        <p>There's also a "This day required a CDL" box, since which limit applies depends on what you actually drove that day, not just who you are — someone who's usually in a non-CDL van but took the box truck out for a day would check it just for that day. It comes pre-checked (or not) based on what's usual for you, but always change it if that day was different — a note right below it shows which limit applies once it's set. Tap Save.</p>
+        <p>Below that, This Week's Duty Cycle shows your current 7-day period, day by day, with a running total against the 60-hour limit and a Status column showing whether each day stayed within its own daily limit. A Signed column shows a View button for any day that has a signature on file. Made a mistake on an earlier day? Tap Edit next to that day and it'll load right back into the form above, CDL box and all — you'll need to sign again after any change, since the signature certifies whatever hours are on the form at the time you sign.</p>
+        <p>Whether you must sign before a day will save is your company's own policy, set by an admin in Employees (Admin) → Hours of Service Policy — the app will tell you right above the signature box whether it's required or optional for you. Signing certifies that day's hours are accurate, the same way a driver signs a full Record of Duty Status, and you can always sign even when it isn't required. <span class="muted">(Worth knowing: the short-haul exemption text itself, &sect;395.1(e), doesn't spell out a signature requirement the way &sect;395.8(f)(7) does for full logs — many fleets require one anyway, since it's the standard practice that makes a duty record defensible as an official document if it's ever questioned, and it heads off a driver later disputing hours that were actually theirs.)</span></p>
+        <p class="muted">Each employee's 7-day cycle is counted from their own start date — not tied to any particular day of the week, since a driver's cycle might not run the same days every time. An admin sets each person's Cycle Start Date in Employees (Admin); pick any date that actually falls on the first day of that driver's cycle, and the app repeats a 7-day window from it automatically. The daily limit is a flat 14 hours on any day the CDL box was checked, or up to 14 hours (up to 16 on as many as 2 days per cycle) on days it wasn't — a driver needs a CDL if the vehicle's weight requires one, it's placarded for hazmat, or it's built to carry 16 or more people including the driver. Anyone getting close to the 60-hour weekly limit, or who went over a daily limit, shows up on the Dashboard automatically.</p>
+        <p class="muted"><strong>The actual rule, quoted:</strong> This app follows 49 CFR &sect;395.1(e), the short-haul exemption from full Hours of Service logs (49 CFR &sect;395.8 and &sect;395.11), current since FMCSA's 2020 Hours-of-Service Final Rule (effective September 29, 2020) replaced the older 100-air-mile/12-hour version.</p>
+        <p class="muted">&sect;395.1(e)(1) &mdash; CDL vehicles: "A driver is exempt... if: (i) The driver operates within a 150 air-mile radius (172.6 statute miles) of the normal work reporting location; (ii) The driver... returns to the work reporting location and is released from work within 14 consecutive hours; (iii)(A) A property-carrying commercial motor vehicle driver has at least 10 consecutive hours off-duty separating each 14 hours on-duty..."</p>
+        <p class="muted">&sect;395.1(e)(2) &mdash; vehicles not requiring a CDL: "...a driver is exempt... if: (i) The driver operates a property-carrying commercial motor vehicle for which a commercial driver's license is not required under part 383...; (ii) The driver operates within a 150 air-mile radius of [the] normal work reporting location; (iii) The driver returns to the normal work reporting location at the end of each duty tour; (iv) The driver does not drive: (A) After the 14th hour after coming on duty on 5 days of any period of 7 consecutive days; and (B) After the 16th hour after coming on duty on 2 days of any period of 7 consecutive days..."</p>
+        <p class="muted">Which one applies is a property of the vehicle being driven that day, not of the driver personally holding a CDL — that's exactly why the CDL box above is set per day, not once per employee. Full text: <a href="https://www.ecfr.gov/current/title-49/subtitle-B/chapter-III/subchapter-B/part-395/subpart-A/section-395.1" target="_blank" rel="noopener">ecfr.gov, 49 CFR &sect;395.1</a>.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Power Tools</h2>
+        <p>Tap Power Tools and pick a Location at the top — a specific vehicle, or "Warehouse / Shop" for anything that isn't on a vehicle. Add a tool with a name, its serial number if it has one, and a status (OK, Needs Repair, or Missing/Lost). To change a tool's status later, just tap it right in the list and change it — no separate edit screen.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Supplies</h2>
+        <p>Tap Supplies and pick a Location the same way. Add a supply with a name and how many you have — tap the quantity in the list any time to update it.</p>
+        <p>Below that is the Restock List. If something's running low or you've used the last of it, add it here with how many you need and any notes — no need to know whether it should be reordered or is already sitting at the shop, that part's up to the admin. Once you add one, everyone can see it's on the list, so nobody adds the same thing twice.</p>
+        <p>An admin can then mark each one either Reorder (more needs to be bought) or Will Call (it's already in stock — a driver just needs to swing by and pick it up). Once it's actually been restocked or picked up, tap Mark Fulfilled and it's done.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Daily Backups (Admin)</h2>
+        <p>Down at the bottom of Employees (Admin) is a Daily Backups box. Every 24 hours, the whole company's data gets automatically saved as its own dated snapshot — separate from the live database, so even a bad mistake in today's data can't touch yesterday's snapshot. The last 30 days are always kept.</p>
+        <p>Tap Back Up Now any time you want an extra one on the spot — right before a big change, for example. Tap Download next to any date to save that day's snapshot as a file, the same way you'd save anything else to your computer, Google Drive, or a flash drive.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Everything else</h2>
+        <p class="muted">All the tabs are built. More gets added here as it's finished.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Standalone DVIR report — a printable/exportable copy of one signed
+     inspection, for DOT recordkeeping. Opened from Recent Inspections. -->
+<div id="dvirReportOverlay" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <div id="dvirReportContent"></div>
+    <div class="row no-print" style="margin-top:10px;">
+      <button type="button" class="secondary" id="dvirReportClose">Close</button>
+      <button type="button" id="dvirReportPrint">Print / Save as PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// CONFIG — this deployment is fixed to one company (Mobile Onsite Handyman
+// Services). Every login typed into this page only ever means an employee
+// of THIS org, which is why employee number + PIN alone is enough here.
+// ---------------------------------------------------------------------------
+const SUPABASE_URL = "https://ehvaeztyeczcggavwfnn.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable__pedltP3kP1Nzgi_l_tubA_qeSApied";
+const ORG_ID = "ce6f8893-a241-4563-b380-8aca025a5370";
+const EDGE_FUNCTION_URL = SUPABASE_URL + "/functions/v1/swift-function";
+// Deploy the backup function under this exact name ("fleet-backup") so
+// this URL matches it without any further changes. If it ends up under a
+// different name in your Supabase project, update this one line to match.
+// The function is titled "fleet-backup" in the dashboard, but Supabase kept
+// its actual web address under the auto-generated name it had before that
+// title was typed in ("smooth-api") - the title and the address are two
+// different things. This points at the address it's really sitting at.
+const BACKUP_FUNCTION_URL = SUPABASE_URL + "/functions/v1/smooth-api";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentEmployee = null; // { id, name, role, org_id }
+let orgSettings = { hos_require_signature: true }; // default until loaded, matches the DB column's own default
+// The signature already on file for whatever date is currently loaded in
+// the Log Your Hours form (a Storage path, or null). Since signing can be
+// optional now, saving with a blank pad must NOT wipe out a signature
+// that's already there -- it should only be replaced by actually signing
+// again. This is what "leave it alone" falls back to in that case.
+let hosCurrentSignaturePath = null;
+
+async function loadOrgSettings() {
+  const { data, error } = await sb.from("organizations").select("hos_require_signature").eq("id", ORG_ID).single();
+  if (!error && data) orgSettings.hos_require_signature = data.hos_require_signature;
+}
+
+function syntheticEmail(employeeNumber) { return `${employeeNumber}@${ORG_ID}.fleetlog.internal`; }
+function syntheticPassword(employeeNumber, pin) { return `${employeeNumber}-${pin}`; }
+
+function showMsg(el, text, kind) {
+  el.innerHTML = text ? `<div class="msg ${kind}">${text}</div>` : "";
+}
+
+// ---------------------------------------------------------------------------
+// LOGIN / LOGOUT
+// ---------------------------------------------------------------------------
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("loginMsg");
+  const empNum = document.getElementById("loginEmployeeNumber").value.trim();
+  const pin = document.getElementById("loginPin").value.trim();
+  if (!empNum || !pin) { showMsg(msgEl, "Enter your employee number and PIN.", "error"); return; }
+
+  showMsg(msgEl, "", "");
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: syntheticEmail(empNum),
+    password: syntheticPassword(empNum, pin),
+  });
+  if (error) {
+    showMsg(msgEl, "Employee number or PIN not recognized.", "error");
+    return;
+  }
+  await afterLogin();
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await sb.auth.signOut();
+  currentEmployee = null;
+  document.getElementById("appScreen").hidden = true;
+  document.getElementById("loginScreen").hidden = false;
+});
+
+async function afterLogin() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  const { data: empRow, error } = await sb.from("employees").select("*").eq("id", user.id).single();
+  if (error || !empRow) {
+    showMsg(document.getElementById("loginMsg"), "Logged in, but no employee record was found for this account.", "error");
+    await sb.auth.signOut();
+    return;
+  }
+  currentEmployee = empRow;
+  document.getElementById("loginScreen").hidden = true;
+  document.getElementById("appScreen").hidden = false;
+  document.getElementById("whoName").textContent = empRow.name;
+  document.getElementById("whoRole").textContent = empRow.role;
+  document.getElementById("whoRole").className = "pill" + (empRow.role === "admin" ? " admin" : "");
+  buildTabs();
+  await loadOrgSettings();
+  loadDashboard();
+  loadVehicles();
+  loadMileageTab();
+  loadFuelTab();
+  loadMaintTab();
+  loadInspectionsTab();
+  loadToolsTab();
+  loadSuppliesTab();
+  loadHosTab();
+  if (empRow.role === "admin") {
+    loadEmployees();
+    loadIntervals();
+    loadBackups();
+    document.getElementById("hosRequireSignatureToggle").checked = orgSettings.hos_require_signature;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TABS
+// ---------------------------------------------------------------------------
+const ALL_TABS = [
+  { id: "dashboard", label: "Dashboard", adminOnly: false },
+  { id: "mileage", label: "Mileage", adminOnly: false },
+  { id: "vehicles", label: "Vehicles", adminOnly: false },
+  { id: "fuel", label: "Fuel", adminOnly: false },
+  { id: "maintenance", label: "Maintenance", adminOnly: false },
+  { id: "inspections", label: "Inspections", adminOnly: false },
+  { id: "hos", label: "Hours of Service", adminOnly: false },
+  { id: "tools", label: "Power Tools", adminOnly: false },
+  { id: "supplies", label: "Supplies", adminOnly: false },
+  { id: "employees", label: "Employees (Admin)", adminOnly: true },
+  { id: "intervals", label: "Service Intervals (Admin)", adminOnly: true },
+  { id: "howto", label: "How To Use", adminOnly: false },
+];
+
+function buildTabs() {
+  const bar = document.getElementById("tabBar");
+  bar.innerHTML = "";
+  ALL_TABS.forEach((tab) => {
+    if (tab.adminOnly && currentEmployee.role !== "admin") return;
+    const btn = document.createElement("button");
+    btn.className = "tab-btn" + (tab.id === "dashboard" ? " active" : "");
+    btn.textContent = tab.label;
+    btn.addEventListener("click", () => switchTab(tab.id));
+    btn.dataset.tabId = tab.id;
+    bar.appendChild(btn);
+  });
+}
+
+const VEHICLE_TYPE_LABELS = { car: "Car", van: "Van", box_truck: "Box Truck", truck: "Truck", semi: "Semi / 18-Wheeler", trailer: "Trailer" };
+function vehicleTypeLabel(t) { return VEHICLE_TYPE_LABELS[t] || t; }
+
+function switchTab(tabId) {
+  document.querySelectorAll(".tab-panel").forEach((p) => (p.hidden = true));
+  document.getElementById("tab-" + tabId).hidden = false;
+  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tabId === tabId));
+}
+
+// ---------------------------------------------------------------------------
+// DASHBOARD
+// ---------------------------------------------------------------------------
+async function loadDashboard() {
+  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const tbody = document.querySelector("#dashboardVehicleTable tbody");
+  tbody.innerHTML = "";
+  (vehicles || []).forEach((v) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${v.unit_id}</td><td>${vehicleTypeLabel(v.vehicle_type)}</td><td>${v.current_mileage ?? "—"}</td>`;
+    tbody.appendChild(tr);
+  });
+  loadAttention(vehicles || []);
+}
+
+// How many days out counts as "due soon" (shown as a warning) vs. still fine.
+const ATTENTION_DUE_SOON_DAYS = 14;
+
+// The 60-hour/7-day duty cycle limit for the Hours of Service log.
+const HOS_CYCLE_LIMIT = 60;
+
+// One glance at everything across the whole fleet that needs a human to do
+// something about it: a grounded vehicle waiting on sign-off, maintenance
+// or Registration/Smog that's overdue or coming up, a tool that's broken
+// or missing, a supply that's hit zero. Pulls fresh every time the
+// Dashboard loads (which happens after most actions in the app), so it's
+// always caught up without anyone having to remember to check it.
+async function loadAttention(vehicles) {
+  const listEl = document.getElementById("attentionList");
+  const items = [];
+
+  const vehicleById = {};
+  vehicles.forEach((v) => { vehicleById[v.id] = v; });
+  function locationLabel(vehicleId) {
+    return vehicleId && vehicleById[vehicleId] ? vehicleById[vehicleId].unit_id : "Warehouse / Shop";
+  }
+
+  // Grounded vehicles: latest inspection had a defect and no admin
+  // certification has cleared it yet.
+  for (const v of vehicles) {
+    const { data: latest } = await sb
+      .from("inspections")
+      .select("id, has_defect, log_date")
+      .eq("vehicle_id", v.id)
+      .order("log_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latest && latest.has_defect) {
+      const { data: cert } = await sb
+        .from("inspection_certifications")
+        .select("id")
+        .eq("inspection_id", latest.id)
+        .limit(1)
+        .maybeSingle();
+      if (!cert) {
+        items.push({
+          level: "urgent",
+          text: `${v.unit_id} is grounded`,
+          sub: `Defect reported on the ${latest.log_date} inspection — needs admin sign-off before it's used again.`,
+        });
+      }
+    }
+  }
+
+  // Maintenance, Registration, and Smog — overdue or coming due soon.
+  const today = todayStr();
+  const soon = new Date();
+  soon.setDate(soon.getDate() + ATTENTION_DUE_SOON_DAYS);
+  const soonStr = soon.getFullYear() + "-" + String(soon.getMonth() + 1).padStart(2, "0") + "-" + String(soon.getDate()).padStart(2, "0");
+
+  function checkDateDue(dateStr, unit, label) {
+    if (!dateStr) return;
+    if (dateStr < today) {
+      items.push({ level: "urgent", text: `${unit} — ${label} overdue`, sub: `Was due ${dateStr}.` });
+    } else if (dateStr <= soonStr) {
+      items.push({ level: "warning", text: `${unit} — ${label} due soon`, sub: `Due ${dateStr}.` });
+    }
+  }
+
+  const { data: intervals } = await sb.from("maintenance_intervals").select("*");
+  (intervals || []).forEach((i) => {
+    const v = vehicleById[i.vehicle_id];
+    const unit = v?.unit_id || "";
+    const isRegSmog = i.category === "Registration/Smog";
+    checkDateDue(i.next_due_date, unit, isRegSmog ? "Registration" : i.category);
+    if (isRegSmog) checkDateDue(i.smog_next_due_date, unit, "Smog check");
+    if (i.next_due_mileage != null && v?.current_mileage != null && v.current_mileage >= i.next_due_mileage) {
+      items.push({
+        level: "urgent",
+        text: `${unit} — ${i.category} overdue`,
+        sub: `Due at ${i.next_due_mileage} mi, currently at ${v.current_mileage} mi.`,
+      });
+    }
+  });
+
+  // Tools that are broken or missing.
+  const { data: tools } = await sb.from("tools").select("*");
+  (tools || []).forEach((t) => {
+    if (t.status === "needs_repair") {
+      items.push({ level: "warning", text: `${t.name} needs repair`, sub: locationLabel(t.vehicle_id) });
+    } else if (t.status === "missing") {
+      items.push({ level: "urgent", text: `${t.name} is missing/lost`, sub: locationLabel(t.vehicle_id) });
+    }
+  });
+
+  // Supplies that have hit zero.
+  const { data: supplies } = await sb.from("supplies").select("*").eq("quantity", 0);
+  (supplies || []).forEach((s) => {
+    items.push({ level: "warning", text: `${s.name} is out of stock`, sub: locationLabel(s.vehicle_id) });
+  });
+
+  // Restock requests nobody's acted on yet.
+  const { data: restocks } = await sb.from("restock_requests").select("*").eq("status", "requested");
+  (restocks || []).forEach((r) => {
+    items.push({ level: "warning", text: `${r.item_name} needs restocking`, sub: `Requested from ${locationLabel(r.vehicle_id)} — needs Reorder or Will Call.` });
+  });
+
+  // Employees at or near their 60-hour/7-day Hours of Service limit, or who
+  // went over their daily limit. Each employee's own 7-day cycle counts
+  // from their own anchor date; the daily limit is checked per logged day
+  // (each day records its own CDL box, since someone can drive a different
+  // vehicle from one day to the next) — not one shared week or one shared
+  // per-person limit.
+  const { data: hosEmployees } = await sb.from("employees").select("id, name, hos_cycle_anchor_date").eq("active", true);
+  for (const emp of (hosEmployees || [])) {
+    const cycleStart = dateToStr(startOfCycleFromAnchor(emp.hos_cycle_anchor_date, todayMidnight()));
+    const { data: hosRows } = await sb.from("hos_logs").select("log_date, on_duty_hours, requires_cdl").eq("employee_id", emp.id).gte("log_date", cycleStart).order("log_date");
+    const total = (hosRows || []).reduce((sum, r) => sum + (Number(r.on_duty_hours) || 0), 0);
+    if (total >= HOS_CYCLE_LIMIT) {
+      items.push({ level: "urgent", text: `${emp.name} is at the ${HOS_CYCLE_LIMIT}-hour duty limit`, sub: `${total.toFixed(1)} hours logged this cycle (started ${cycleStart}).` });
+    } else if (total >= HOS_CYCLE_LIMIT - 10) {
+      items.push({ level: "warning", text: `${emp.name} is nearing the ${HOS_CYCLE_LIMIT}-hour duty limit`, sub: `${total.toFixed(1)} of ${HOS_CYCLE_LIMIT} hours used this cycle.` });
+    }
+    const dailyStatus = hosDailyStatuses(hosRows || []);
+    const overDays = Object.entries(dailyStatus).filter(([, status]) => status === "violation").map(([date]) => date);
+    if (overDays.length) {
+      items.push({ level: "urgent", text: `${emp.name} went over the daily Hours of Service limit`, sub: `On: ${overDays.join(", ")}.` });
+    }
+  }
+
+  if (!items.length) {
+    listEl.innerHTML = `<p class="muted">All clear — nothing needs attention right now.</p>`;
+    return;
+  }
+  const order = { urgent: 0, warning: 1 };
+  items.sort((a, b) => order[a.level] - order[b.level]);
+  listEl.innerHTML = items.map((i) => `
+    <div class="attn-card ${i.level}">
+      <strong>${i.text}</strong>
+      <span>${i.sub}</span>
+    </div>
+  `).join("");
+}
+
+// ---------------------------------------------------------------------------
+// VEHICLES
+// ---------------------------------------------------------------------------
+async function loadVehicles() {
+  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const tbody = document.querySelector("#vehicleTable tbody");
+  tbody.innerHTML = "";
+  (vehicles || []).forEach((v) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${v.unit_id}</td><td>${vehicleTypeLabel(v.vehicle_type)}</td><td>${v.make || ""} ${v.model || ""}</td><td>${v.year || ""}</td><td>${v.current_mileage ?? "—"}</td>`;
+    tbody.appendChild(tr);
+  });
+  // Also refresh the vehicle dropdown on the Service Intervals tab
+  const sel = document.getElementById("intervalVehicle");
+  if (sel) {
+    sel.innerHTML = "";
+    (vehicles || []).forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v.id; opt.textContent = v.unit_id;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+document.getElementById("addVehicleBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("vehicleMsg");
+  const unitId = document.getElementById("vehicleUnitId").value.trim();
+  if (!unitId) { showMsg(msgEl, "Enter a unit ID.", "error"); return; }
+  const { error } = await sb.from("vehicles").insert({
+    org_id: ORG_ID,
+    unit_id: unitId,
+    vehicle_type: document.getElementById("vehicleType").value,
+    make: document.getElementById("vehicleMake").value.trim() || null,
+    model: document.getElementById("vehicleModel").value.trim() || null,
+    year: document.getElementById("vehicleYear").value.trim() || null,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  showMsg(msgEl, "Vehicle added.", "ok");
+  document.getElementById("vehicleUnitId").value = "";
+  document.getElementById("vehicleMake").value = "";
+  document.getElementById("vehicleModel").value = "";
+  document.getElementById("vehicleYear").value = "";
+  loadVehicles();
+  loadDashboard();
+});
+
+// ---------------------------------------------------------------------------
+// EMPLOYEES (admin only) — creation/PIN reset go through the Edge Function
+// ---------------------------------------------------------------------------
+// Shared by callFleetAdmin and callFleetBackup below. Never throws — always
+// resolves to either the function's real JSON reply, or a plain-English
+// {error} explaining what went wrong (wrong deployed function name, the
+// network dropped, the function crashed and returned an error page instead
+// of JSON, etc). Without this, a bad response used to leave a button stuck
+// on "Backing up..." or "Creating..." forever with no explanation.
+async function callEdgeFunction(url, functionLabel, action, payload) {
+  let res;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + session.access_token,
+        "apikey": SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ action, ...payload }),
+    });
+  } catch (e) {
+    return { error: `Couldn't reach the "${functionLabel}" function. Check your internet connection and that it's deployed in Supabase Edge Functions.` };
+  }
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: `The "${functionLabel}" function sent back something unexpected (status ${res.status}). Make sure it's deployed under that exact name in Supabase Edge Functions.` };
+  }
+}
+
+async function callFleetAdmin(action, payload) {
+  return callEdgeFunction(EDGE_FUNCTION_URL, "fleet-admin", action, payload);
+}
+
+async function callFleetBackup(action, payload) {
+  return callEdgeFunction(BACKUP_FUNCTION_URL, "fleet-backup", action, payload);
+}
+
+function formatBytes(n) {
+  if (n == null) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function loadBackups() {
+  const result = await callFleetBackup("listBackups", {});
+  const tbody = document.querySelector("#backupTable tbody");
+  tbody.innerHTML = "";
+  if (result.error) {
+    tbody.innerHTML = `<tr><td colspan="3" class="muted">${result.error}</td></tr>`;
+    return;
+  }
+  (result.backups || []).forEach((b) => {
+    const tr = document.createElement("tr");
+    const dateLabel = b.storage_path.split("/").pop().replace(".json", "");
+    tr.innerHTML = `<td>${dateLabel}</td><td>${formatBytes(b.size_bytes)}</td><td><button type="button" class="secondary" data-download-backup="${b.storage_path}">Download</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-download-backup]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const msgEl = document.getElementById("backupMsg");
+      btn.disabled = true;
+      const result = await callFleetBackup("getDownloadUrl", { storagePath: btn.dataset.downloadBackup });
+      btn.disabled = false;
+      if (result.error) { showMsg(msgEl, result.error, "error"); return; }
+      window.open(result.url, "_blank");
+    });
+  });
+}
+
+document.getElementById("backupNowBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("backupMsg");
+  const btn = document.getElementById("backupNowBtn");
+  btn.disabled = true;
+  showMsg(msgEl, "Backing up...", "");
+  const result = await callFleetBackup("backupNow", {});
+  btn.disabled = false;
+  if (result.error) { showMsg(msgEl, result.error, "error"); return; }
+  showMsg(msgEl, "Backup saved.", "ok");
+  loadBackups();
+});
+
+async function loadEmployees() {
+  const { data: employees } = await sb.from("employees").select("*").order("employee_number");
+  const tbody = document.querySelector("#employeeTable tbody");
+  tbody.innerHTML = "";
+  (employees || []).forEach((e) => {
+    const tr = document.createElement("tr");
+    const resetBtn = `<button class="secondary" data-reset="${e.id}" data-empnum="${e.employee_number}">Reset PIN</button>`;
+    const cdlOptions = `<option value="true"${(e.requires_cdl ?? true) ? " selected" : ""}>Yes</option><option value="false"${!(e.requires_cdl ?? true) ? " selected" : ""}>No</option>`;
+    tr.innerHTML = `<td>${e.employee_number}</td><td>${e.name}</td><td>${e.role}</td><td>${e.active ? "Yes" : "No"}</td>` +
+      `<td><input type="date" data-cycle-anchor="${e.id}" value="${e.hos_cycle_anchor_date || ""}" /></td>` +
+      `<td><select data-requires-cdl="${e.id}">${cdlOptions}</select></td><td>${resetBtn}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-reset]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const newPin = prompt(`New PIN for employee #${btn.dataset.empnum}:`);
+      if (!newPin) return;
+      const result = await callFleetAdmin("resetPin", { employeeId: btn.dataset.reset, newPin });
+      showMsg(document.getElementById("employeeMsg"), result.error || "PIN reset.", result.error ? "error" : "ok");
+    });
+  });
+  tbody.querySelectorAll("[data-cycle-anchor]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      if (!input.value) return;
+      const { error } = await sb.from("employees")
+        .update({ hos_cycle_anchor_date: input.value })
+        .eq("id", input.dataset.cycleAnchor);
+      showMsg(document.getElementById("employeeMsg"), error ? error.message : "Cycle start date updated.", error ? "error" : "ok");
+      if (input.dataset.cycleAnchor === currentEmployee.id) { currentEmployee.hos_cycle_anchor_date = input.value; loadHosTab(); }
+    });
+  });
+  tbody.querySelectorAll("[data-requires-cdl]").forEach((sel) => {
+    sel.addEventListener("change", async () => {
+      const requiresCdl = sel.value === "true";
+      const { error } = await sb.from("employees")
+        .update({ requires_cdl: requiresCdl })
+        .eq("id", sel.dataset.requiresCdl);
+      showMsg(document.getElementById("employeeMsg"), error ? error.message : "Updated.", error ? "error" : "ok");
+      if (sel.dataset.requiresCdl === currentEmployee.id) { currentEmployee.requires_cdl = requiresCdl; loadHosTab(); }
+    });
+  });
+}
+
+document.getElementById("addEmployeeBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("employeeMsg");
+  const employeeNumber = document.getElementById("newEmployeeNumber").value.trim();
+  const name = document.getElementById("newEmployeeName").value.trim();
+  const pin = document.getElementById("newEmployeePin").value.trim();
+  const role = document.getElementById("newEmployeeRole").value;
+  if (!employeeNumber || !name || !pin) { showMsg(msgEl, "Fill in employee number, name, and PIN.", "error"); return; }
+
+  showMsg(msgEl, "", "");
+  const result = await callFleetAdmin("createEmployee", { employeeNumber, name, pin, role });
+  if (result.error) { showMsg(msgEl, result.error, "error"); return; }
+  showMsg(msgEl, `Login created for ${name}.`, "ok");
+  document.getElementById("newEmployeeNumber").value = "";
+  document.getElementById("newEmployeeName").value = "";
+  document.getElementById("newEmployeePin").value = "";
+  loadEmployees();
+});
+
+// ---------------------------------------------------------------------------
+// MILEAGE LOG — today's log is front and center; starting mileage fills
+// itself in; stops already entered stay visible while adding more; recent
+// days stay one tap away to finish off. Nothing forces a final submit.
+// ---------------------------------------------------------------------------
+let mileageVehicleId = null;
+let activeMileageLog = null; // the log row currently shown in the editor, or null
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+async function populateMileageVehicleSelect() {
+  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const sel = document.getElementById("mileageVehicle");
+  const previousValue = mileageVehicleId;
+  sel.innerHTML = "";
+  (vehicles || []).forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.unit_id;
+    opt.dataset.currentMileage = v.current_mileage ?? "";
+    sel.appendChild(opt);
+  });
+  if (previousValue && vehicles?.some((v) => v.id === previousValue)) {
+    mileageVehicleId = previousValue;
+  } else if (vehicles && vehicles.length) {
+    mileageVehicleId = vehicles[0].id;
+  } else {
+    mileageVehicleId = null;
+  }
+  if (mileageVehicleId) sel.value = mileageVehicleId;
+}
+
+async function loadMileageTab() {
+  await populateMileageVehicleSelect();
+  await refreshMileageEditorForToday();
+  await loadRecentMileageLogs();
+}
+
+document.getElementById("mileageVehicle").addEventListener("change", async (e) => {
+  mileageVehicleId = e.target.value;
+  await refreshMileageEditorForToday();
+});
+
+async function refreshMileageEditorForToday() {
+  if (!mileageVehicleId) return;
+  const { data: existing } = await sb
+    .from("mileage_logs")
+    .select("*")
+    .eq("employee_id", currentEmployee.id)
+    .eq("vehicle_id", mileageVehicleId)
+    .eq("log_date", todayStr())
+    .maybeSingle();
+
+  if (existing) {
+    activeMileageLog = existing;
+    await showMileageEditor();
+  } else {
+    activeMileageLog = null;
+    showMileageStartForm();
+  }
+}
+
+function showMileageStartForm() {
+  document.getElementById("mileageStartCard").hidden = false;
+  document.getElementById("mileageEditCard").hidden = true;
+  const sel = document.getElementById("mileageVehicle");
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById("mileageStartInput").value = opt?.dataset.currentMileage || "";
+  showMsg(document.getElementById("mileageStartMsg"), "", "");
+}
+
+document.getElementById("startMileageLogBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("mileageStartMsg");
+  const startMileage = document.getElementById("mileageStartInput").value.trim();
+  if (!startMileage) { showMsg(msgEl, "Enter your starting mileage.", "error"); return; }
+
+  const { data, error } = await sb
+    .from("mileage_logs")
+    .insert({
+      org_id: ORG_ID,
+      employee_id: currentEmployee.id,
+      vehicle_id: mileageVehicleId,
+      log_date: todayStr(),
+      start_mileage: startMileage,
+    })
+    .select()
+    .single();
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  activeMileageLog = data;
+  await showMileageEditor();
+  loadRecentMileageLogs();
+});
+
+async function showMileageEditor() {
+  document.getElementById("mileageStartCard").hidden = true;
+  document.getElementById("mileageEditCard").hidden = false;
+  showMsg(document.getElementById("mileageEditMsg"), "", "");
+
+  const isToday = activeMileageLog.log_date === todayStr();
+  document.getElementById("mileageEditTitle").textContent = isToday ? "Today's Log" : `Log for ${activeMileageLog.log_date}`;
+
+  const sel = document.getElementById("mileageVehicle");
+  const opt = [...sel.options].find((o) => o.value === activeMileageLog.vehicle_id);
+  document.getElementById("mileageEditSub").textContent =
+    `Starting mileage: ${activeMileageLog.start_mileage}` + (opt ? ` — ${opt.textContent}` : "");
+
+  document.getElementById("mileageEndInput").value = activeMileageLog.end_mileage ?? "";
+  document.getElementById("mileageNotes").value = activeMileageLog.notes || "";
+  document.getElementById("mileagePersonal").checked = !!activeMileageLog.is_personal;
+
+  await loadStopsForActiveLog();
+}
+
+async function loadStopsForActiveLog() {
+  const { data: stops } = await sb
+    .from("mileage_log_stops")
+    .select("*")
+    .eq("mileage_log_id", activeMileageLog.id)
+    .order("stop_order");
+  const listEl = document.getElementById("mileageStopsList");
+  if (!stops || !stops.length) {
+    listEl.innerHTML = `<p class="muted">No stops added yet.</p>`;
+    return;
+  }
+  listEl.innerHTML = stops
+    .map((s, i) => `
+      <div class="stop-card">
+        <strong>${i + 1}. ${s.stop_name || "(no name)"}</strong><br>
+        <span class="muted">${[s.address, s.city].filter(Boolean).join(", ")}</span>
+        ${s.purpose ? `<br><span class="muted">Purpose: ${s.purpose}</span>` : ""}
+      </div>`)
+    .join("");
+}
+
+document.getElementById("addStopBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("mileageEditMsg");
+  const stopName = document.getElementById("stopName").value.trim();
+  if (!stopName) { showMsg(msgEl, "Enter at least a stop name.", "error"); return; }
+
+  const { data: existingStops } = await sb
+    .from("mileage_log_stops")
+    .select("stop_order")
+    .eq("mileage_log_id", activeMileageLog.id)
+    .order("stop_order", { ascending: false })
+    .limit(1);
+  const nextOrder = existingStops && existingStops.length ? existingStops[0].stop_order + 1 : 0;
+
+  const { error } = await sb.from("mileage_log_stops").insert({
+    org_id: ORG_ID,
+    mileage_log_id: activeMileageLog.id,
+    stop_name: stopName,
+    address: document.getElementById("stopAddress").value.trim() || null,
+    city: document.getElementById("stopCity").value.trim() || null,
+    purpose: document.getElementById("stopPurpose").value.trim() || null,
+    stop_order: nextOrder,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "", "");
+  document.getElementById("stopName").value = "";
+  document.getElementById("stopAddress").value = "";
+  document.getElementById("stopCity").value = "";
+  document.getElementById("stopPurpose").value = "";
+  loadStopsForActiveLog();
+});
+
+document.getElementById("saveMileageLogBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("mileageEditMsg");
+  const endMileage = document.getElementById("mileageEndInput").value.trim();
+
+  const { error } = await sb
+    .from("mileage_logs")
+    .update({
+      end_mileage: endMileage || null,
+      notes: document.getElementById("mileageNotes").value.trim() || null,
+      is_personal: document.getElementById("mileagePersonal").checked,
+    })
+    .eq("id", activeMileageLog.id);
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "Saved.", "ok");
+  loadDashboard();
+  loadVehicles();
+  loadRecentMileageLogs();
+});
+
+async function loadRecentMileageLogs() {
+  const { data: logs } = await sb
+    .from("mileage_logs")
+    .select("*, vehicles(unit_id)")
+    .eq("employee_id", currentEmployee.id)
+    .order("log_date", { ascending: false })
+    .limit(7);
+  const tbody = document.querySelector("#recentMileageTable tbody");
+  tbody.innerHTML = "";
+  (logs || []).forEach((l) => {
+    const miles = l.end_mileage != null ? `${l.start_mileage} → ${l.end_mileage}` : `${l.start_mileage} → (not finished)`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${l.log_date}</td><td>${l.vehicles?.unit_id || ""}</td><td>${miles}</td><td><button class="secondary" data-edit-log="${l.id}">Edit</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-edit-log]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const { data: log } = await sb.from("mileage_logs").select("*").eq("id", btn.dataset.editLog).single();
+      if (!log) return;
+      activeMileageLog = log;
+      mileageVehicleId = log.vehicle_id;
+      document.getElementById("mileageVehicle").value = log.vehicle_id;
+      await showMileageEditor();
+      switchTab("mileage");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// FUEL LOG — each fill-up is its own record (not a day-long evolving one
+// like Mileage). Odometer pre-fills from the vehicle's last known reading;
+// approx MPG is calculated fill-up to fill-up by the fuel_logs_with_mpg
+// database view.
+// ---------------------------------------------------------------------------
+let fuelVehicleId = null;
+
+async function populateFuelVehicleSelect() {
+  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const sel = document.getElementById("fuelVehicle");
+  const previousValue = fuelVehicleId;
+  sel.innerHTML = "";
+  (vehicles || []).forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.unit_id;
+    opt.dataset.currentMileage = v.current_mileage ?? "";
+    sel.appendChild(opt);
+  });
+  if (previousValue && vehicles?.some((v) => v.id === previousValue)) {
+    fuelVehicleId = previousValue;
+  } else if (vehicles && vehicles.length) {
+    fuelVehicleId = vehicles[0].id;
+  } else {
+    fuelVehicleId = null;
+  }
+  if (fuelVehicleId) sel.value = fuelVehicleId;
+  showFuelLastKnownMileage();
+}
+
+function showFuelLastKnownMileage() {
+  const sel = document.getElementById("fuelVehicle");
+  const opt = sel.options[sel.selectedIndex];
+  const known = opt?.dataset.currentMileage;
+  document.getElementById("fuelLastKnownMileage").textContent = known
+    ? `Last recorded mileage for this vehicle: ${known} — your entry must be higher than this.`
+    : "";
+}
+
+document.getElementById("fuelVehicle").addEventListener("change", async (e) => {
+  fuelVehicleId = e.target.value;
+  showFuelLastKnownMileage();
+  await loadFuelTable();
+});
+
+async function loadFuelTab() {
+  document.getElementById("fuelDate").value = todayStr();
+  await populateFuelVehicleSelect();
+  await loadFuelTable();
+}
+
+document.getElementById("addFuelBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("fuelMsg");
+  const logDate = document.getElementById("fuelDate").value;
+  const amount = document.getElementById("fuelAmount").value.trim();
+  const gallons = document.getElementById("fuelGallons").value.trim();
+  const odometer = document.getElementById("fuelOdometer").value.trim();
+  if (!logDate || !amount || !gallons || !odometer) {
+    showMsg(msgEl, "Date, amount, gallons, and odometer are all required.", "error");
+    return;
+  }
+
+  const { error } = await sb.from("fuel_logs").insert({
+    org_id: ORG_ID,
+    employee_id: currentEmployee.id,
+    vehicle_id: fuelVehicleId,
+    log_date: logDate,
+    amount,
+    gallons,
+    odometer,
+    notes: document.getElementById("fuelNotes").value.trim() || null,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "Fill-up saved.", "ok");
+  document.getElementById("fuelAmount").value = "";
+  document.getElementById("fuelGallons").value = "";
+  document.getElementById("fuelOdometer").value = "";
+  document.getElementById("fuelNotes").value = "";
+  document.getElementById("fuelDate").value = todayStr();
+  loadFuelTable();
+  loadDashboard();
+  loadVehicles();
+  populateFuelVehicleSelect();
+});
+
+async function loadFuelTable() {
+  if (!fuelVehicleId) return;
+  const { data: fills } = await sb
+    .from("fuel_logs_with_mpg")
+    .select("*")
+    .eq("vehicle_id", fuelVehicleId)
+    .order("log_date", { ascending: false })
+    .limit(7);
+  const tbody = document.querySelector("#fuelTable tbody");
+  tbody.innerHTML = "";
+  (fills || []).forEach((f) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${f.log_date}</td><td>${f.amount}</td><td>${f.gallons}</td><td>${f.odometer ?? ""}</td><td>${f.approx_mpg ?? "—"}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// MAINTENANCE LOG + PARTS & SPECS
+// ---------------------------------------------------------------------------
+let maintVehicleId = null;
+
+async function populateMaintVehicleSelect() {
+  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const sel = document.getElementById("maintVehicle");
+  const previousValue = maintVehicleId;
+  sel.innerHTML = "";
+  (vehicles || []).forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.unit_id;
+    sel.appendChild(opt);
+  });
+  if (previousValue && vehicles?.some((v) => v.id === previousValue)) {
+    maintVehicleId = previousValue;
+  } else if (vehicles && vehicles.length) {
+    maintVehicleId = vehicles[0].id;
+  } else {
+    maintVehicleId = null;
+  }
+  if (maintVehicleId) sel.value = maintVehicleId;
+}
+
+document.getElementById("maintVehicle").addEventListener("change", async (e) => {
+  maintVehicleId = e.target.value;
+  await loadMaintHistory();
+  await loadParts();
+});
+
+async function loadMaintTab() {
+  document.getElementById("maintDate").value = todayStr();
+  await populateMaintCategoryList();
+  await populateMaintVehicleSelect();
+  await loadMaintHistory();
+  await loadParts();
+}
+
+// The standard service categories, carried over from the original app.
+const MAINT_CATEGORIES = [
+  "Oil & Oil Filter Change",
+  "Fuel Filter Change",
+  "Air Filter Change",
+  "Transmission Service",
+  "Rear End Service",
+  "Chassis Lube",
+  "Brakes",
+  "Tire Rotation",
+  "Tire Replacement",
+  "Battery",
+  "Registration/Smog",
+];
+
+async function populateMaintCategoryList() {
+  const sel = document.getElementById("maintCategory");
+  const previousValue = sel.value;
+  sel.innerHTML = "";
+
+  const seen = new Set();
+  MAINT_CATEGORIES.forEach((cat) => {
+    seen.add(cat);
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    sel.appendChild(opt);
+  });
+
+  // Also include anything typed in under "Other" in the past, so it's
+  // pickable again later without retyping — appended after the standard
+  // list rather than replacing it.
+  const [{ data: intervals }, { data: logs }] = await Promise.all([
+    sb.from("maintenance_intervals").select("category"),
+    sb.from("maintenance_logs").select("category"),
+  ]);
+  [...(intervals || []), ...(logs || [])].forEach((row) => {
+    if (seen.has(row.category)) return;
+    seen.add(row.category);
+    const opt = document.createElement("option");
+    opt.value = row.category;
+    opt.textContent = row.category;
+    sel.appendChild(opt);
+  });
+
+  const otherOpt = document.createElement("option");
+  otherOpt.value = "__other__";
+  otherOpt.textContent = "Other (type a new category)";
+  sel.appendChild(otherOpt);
+
+  if (previousValue && seen.has(previousValue)) sel.value = previousValue;
+  toggleMaintCategoryOther();
+}
+
+function toggleMaintCategoryOther() {
+  const val = document.getElementById("maintCategory").value;
+  const isOther = val === "__other__";
+  document.getElementById("maintCategoryOther").hidden = !isOther;
+
+  // Registration/Smog gets a second date box, since registration renews
+  // every year but smog is only every 2 years — they don't always happen
+  // on the same visit.
+  const isRegSmog = val === "Registration/Smog";
+  document.getElementById("maintSmogDateWrap").hidden = !isRegSmog;
+  document.getElementById("maintDateLabel").textContent = isRegSmog ? "Registration Date" : "Date";
+  if (!isRegSmog) document.getElementById("maintSmogDate").value = "";
+}
+
+document.getElementById("maintCategory").addEventListener("change", toggleMaintCategoryOther);
+
+document.getElementById("addMaintLogBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("maintLogMsg");
+  const selected = document.getElementById("maintCategory").value;
+  const category = selected === "__other__"
+    ? document.getElementById("maintCategoryOther").value.trim()
+    : selected;
+  const logDate = document.getElementById("maintDate").value;
+  const mileage = document.getElementById("maintMileage").value.trim();
+  const isRegSmog = category === "Registration/Smog";
+  const smogDate = isRegSmog ? (document.getElementById("maintSmogDate").value || null) : null;
+  const dateLabel = isRegSmog ? "Registration date" : "Date";
+  if (!category || !logDate) { showMsg(msgEl, `Category and ${dateLabel.toLowerCase()} are required.`, "error"); return; }
+
+  const { error } = await sb.from("maintenance_logs").insert({
+    org_id: ORG_ID,
+    employee_id: currentEmployee.id,
+    vehicle_id: maintVehicleId,
+    log_date: logDate,
+    smog_date: smogDate,
+    category,
+    mileage: mileage || null,
+    cost: document.getElementById("maintCost").value.trim() || null,
+    notes: document.getElementById("maintNotes").value.trim() || null,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "Service entry saved.", "ok");
+  document.getElementById("maintCategoryOther").value = "";
+  document.getElementById("maintMileage").value = "";
+  document.getElementById("maintCost").value = "";
+  document.getElementById("maintNotes").value = "";
+  document.getElementById("maintDate").value = todayStr();
+  document.getElementById("maintSmogDate").value = "";
+  loadMaintHistory();
+  populateMaintCategoryList();
+  if (currentEmployee.role === "admin") loadIntervals();
+});
+
+async function loadMaintHistory() {
+  if (!maintVehicleId) return;
+  const { data: logs } = await sb
+    .from("maintenance_logs")
+    .select("*")
+    .eq("vehicle_id", maintVehicleId)
+    .order("log_date", { ascending: false })
+    .limit(10);
+  const tbody = document.querySelector("#maintHistoryTable tbody");
+  tbody.innerHTML = "";
+  (logs || []).forEach((l) => {
+    const tr = document.createElement("tr");
+    const dateCell = l.smog_date ? `${l.log_date}<br><span class="muted">Smog: ${l.smog_date}</span>` : l.log_date;
+    tr.innerHTML = `<td>${dateCell}</td><td>${l.category}</td><td>${l.mileage ?? "—"}</td><td>${l.cost ? "$" + l.cost : "—"}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("addPartBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("partsMsg");
+  const description = document.getElementById("partDescription").value.trim();
+  if (!description) { showMsg(msgEl, "Enter a description for the part.", "error"); return; }
+
+  const { error } = await sb.from("vehicle_parts").insert({
+    org_id: ORG_ID,
+    vehicle_id: maintVehicleId,
+    part_type: document.getElementById("partType").value,
+    description,
+    part_number: document.getElementById("partNumber").value.trim() || null,
+    spec: document.getElementById("partSpec").value.trim() || null,
+    notes: document.getElementById("partNotes").value.trim() || null,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "Part added.", "ok");
+  document.getElementById("partDescription").value = "";
+  document.getElementById("partNumber").value = "";
+  document.getElementById("partSpec").value = "";
+  document.getElementById("partNotes").value = "";
+  loadParts();
+});
+
+async function loadParts() {
+  if (!maintVehicleId) return;
+  const { data: parts } = await sb
+    .from("vehicle_parts")
+    .select("*")
+    .eq("vehicle_id", maintVehicleId)
+    .order("part_type");
+  const tbody = document.querySelector("#partsTable tbody");
+  tbody.innerHTML = "";
+  (parts || []).forEach((p) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p.part_type}</td><td>${p.description}</td><td>${p.part_number || "—"}</td><td>${p.spec || "—"}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// INSPECTIONS (DVIR — Daily Vehicle Inspection Report)
+//
+// The checklist below is your real form, the one used for years (the
+// carbon-copy book that stayed with the truck) — typed in item for item.
+// Every item starts blank/unmarked, same reasoning as the fuel odometer
+// box: no pre-filled "OK" that invites rubber-stamping. A driver has to
+// touch every line before signing.
+//
+// How grounding works: if the most recent inspection for a vehicle found a
+// problem (or the driver didn't check "safe and ready") and nobody has
+// certified it fixed/safe yet, the vehicle is GROUNDED — no new inspection
+// can be logged until an admin signs off. Once certified, the next driver
+// has to acknowledge reading that report (one tap) before they can do
+// today's inspection — satisfies the DOT requirement that a driver review
+// the prior report before operating the vehicle. Once an inspection is
+// signed, it's locked (matches the maintenance/mileage "no editing signed
+// records" rule already in place). Every report is stamped with the exact
+// date and time it was signed.
+// ---------------------------------------------------------------------------
+const DVIR_ITEMS = [
+  "Engine",
+  "Coolant Levels",
+  "Transmission",
+  "Air Compressor",
+  "Lights (Head-Stop-Tail, Dash-Turn Indicator)",
+  "Reflectors",
+  "Front Axle",
+  "Suspension System",
+  "Steering",
+  "Tires and Rims",
+  "Fuel Tanks",
+  "Mirrors",
+  "Engine Starts",
+  "Tachograph",
+  "Windshield Wipers",
+  "Windows",
+  "Horn",
+  "Cones (2)",
+  "Frame and Assembly",
+  "Fifth Wheel",
+  "Defroster/Heater",
+  "Brakes, Parking",
+  "Brakes, Service",
+  "Brakes, Electric",
+  "Clutch",
+  "Safety Equipment (Fire Extinguisher, Reflective Triangles, Bulbs, Fuses)",
+  "Battery",
+  "Body",
+  "Hitch and Safety Pin",
+  "Air Lines",
+  "Drive Line",
+  "Exhaust and Muffler",
+  "Chock Blocks (2)",
+  "Back Alarm",
+  "Other (describe in Remarks)",
+];
+
+function formatDateTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString() + " at " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+// Reusable finger/mouse signature pad — no outside library needed.
+function setupSignaturePad(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext("2d");
+  let drawing = false;
+  let hasStrokes = false;
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#222";
+
+  function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+  canvas.addEventListener("pointerdown", (e) => {
+    drawing = true;
+    hasStrokes = true;
+    const p = pos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    e.preventDefault();
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!drawing) return;
+    const p = pos(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    e.preventDefault();
+  });
+  window.addEventListener("pointerup", () => { drawing = false; });
+
+  return {
+    clear() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasStrokes = false; },
+    isEmpty() { return !hasStrokes; },
+    getDataUrl() { return canvas.toDataURL("image/png"); },
+  };
+}
+
+const inspSig = setupSignaturePad("inspSigPad");
+const certSig = setupSignaturePad("certSigPad");
+const hosSig = setupSignaturePad("hosSigPad");
+document.getElementById("inspSigClear").addEventListener("click", () => inspSig.clear());
+document.getElementById("certSigClear").addEventListener("click", () => certSig.clear());
+document.getElementById("hosSigClear").addEventListener("click", () => hosSig.clear());
+
+// Whether a signature is required on Hours of Service logs is each
+// company's own policy call, stored on their organizations row -- not
+// something this app hardcodes. Only an admin sees/changes the toggle;
+// column-level grants in the DB back that up so a non-admin can't write
+// to it even by calling the API directly.
+document.getElementById("hosRequireSignatureToggle").addEventListener("change", async (e) => {
+  const required = e.target.checked;
+  const msgEl = document.getElementById("hosPolicyMsg");
+  const { error } = await sb.from("organizations").update({ hos_require_signature: required }).eq("id", ORG_ID);
+  if (error) {
+    showMsg(msgEl, error.message, "error");
+    e.target.checked = !required;
+    return;
+  }
+  orgSettings.hos_require_signature = required;
+  showMsg(msgEl, required ? "Drivers must now sign their Hours of Service logs." : "Drivers are no longer required to sign — they can still sign if they want to.", "ok");
+  updateHosSigRequirementNote();
+});
+
+// Signatures are saved to Supabase Storage (private "dvir-signatures"
+// bucket) instead of as base64 text inline in the database — a real
+// fleet's worth of signatures would otherwise bloat the much-more-
+// expensive-per-GB database itself. The signature_data column just holds
+// a short Storage path, not the image. If the upload fails for any
+// reason, this falls back to the old inline data URL so signing never
+// gets blocked by a storage hiccup.
+async function uploadSignature(dataUrl, subfolder) {
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const path = `${ORG_ID}/${subfolder}/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+    const { error } = await sb.storage.from("dvir-signatures").upload(path, blob, { contentType: "image/png" });
+    return error ? dataUrl : path;
+  } catch {
+    return dataUrl;
+  }
+}
+
+// A saved signature_data value can be either an old inline data: URL
+// (from before this feature existed) or a Storage path (current format)
+// — this resolves either one to whatever an <img> tag should point at.
+async function resolveSignatureUrl(value) {
+  if (!value) return null;
+  if (value.startsWith("data:")) return value;
+  const { data, error } = await sb.storage.from("dvir-signatures").createSignedUrl(value, 60 * 30);
+  return error ? null : data.signedUrl;
+}
+
+let inspVehicleId = null;
+let inspItemStatuses = {};
+let inspCertifyInspectionId = null;
+let inspReviewInspectionId = null;
+
+async function populateInspVehicleSelect() {
+  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const sel = document.getElementById("inspVehicle");
+  const previousValue = inspVehicleId;
+  sel.innerHTML = "";
+  (vehicles || []).forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.unit_id;
+    sel.appendChild(opt);
+  });
+  if (previousValue && vehicles?.some((v) => v.id === previousValue)) {
+    inspVehicleId = previousValue;
+  } else if (vehicles && vehicles.length) {
+    inspVehicleId = vehicles[0].id;
+  } else {
+    inspVehicleId = null;
+  }
+  if (inspVehicleId) sel.value = inspVehicleId;
+
+  // Only one vehicle to inspect? Skip the picker entirely — tapping
+  // Inspections should go straight to a blank report, not a dropdown with
+  // one choice already made for you. The picker comes back on its own the
+  // moment a second vehicle exists.
+  document.getElementById("inspVehiclePickerCard").hidden = (vehicles || []).length <= 1;
+}
+
+document.getElementById("inspVehicle").addEventListener("change", async (e) => {
+  inspVehicleId = e.target.value;
+  await loadInspectionsForVehicle();
+});
+
+async function loadInspectionsTab() {
+  await populateInspVehicleSelect();
+  await loadInspectionsForVehicle();
+}
+
+function renderChecklist(containerId, items, statusStore) {
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = "";
+  Object.keys(statusStore).forEach((k) => delete statusStore[k]);
+  items.forEach((label, idx) => {
+    const row = document.createElement("div");
+    row.className = "dvir-item";
+    row.innerHTML = `
+      <span class="dvir-label">${label}</span>
+      <div class="dvir-buttons">
+        <button type="button" class="dvir-btn ok" data-idx="${idx}" data-status="ok">OK</button>
+        <button type="button" class="dvir-btn na" data-idx="${idx}" data-status="na">N/A</button>
+        <button type="button" class="dvir-btn defect" data-idx="${idx}" data-status="defect">Defect</button>
+      </div>`;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll(".dvir-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      statusStore[btn.dataset.idx] = btn.dataset.status;
+      const row = btn.closest(".dvir-item");
+      row.querySelectorAll(".dvir-btn").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    });
+  });
+}
+
+async function loadInspectionsForVehicle() {
+  document.getElementById("inspGroundedBanner").hidden = true;
+  document.getElementById("inspReviewBanner").hidden = true;
+  document.getElementById("inspFormCard").hidden = true;
+  if (!inspVehicleId) return;
+
+  await loadInspectionHistory();
+
+  const { data: latest } = await sb
+    .from("inspections")
+    .select("*, employees(name)")
+    .eq("vehicle_id", inspVehicleId)
+    .order("log_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latest && latest.has_defect) {
+    const { data: cert } = await sb
+      .from("inspection_certifications")
+      .select("*, employees(name)")
+      .eq("inspection_id", latest.id)
+      .order("certified_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!cert) {
+      showGroundedBanner(latest);
+      return;
+    }
+
+    const { data: myReview } = await sb
+      .from("inspection_reviews")
+      .select("*")
+      .eq("inspection_id", latest.id)
+      .eq("reviewed_by", currentEmployee.id)
+      .maybeSingle();
+
+    if (!myReview) {
+      showReviewBanner(latest, cert);
+      return;
+    }
+  }
+
+  await showTodayInspectionForm();
+}
+
+function defectSummary(latest) {
+  const items = (latest.items || []).filter((i) => i.status === "defect").map((i) => i.label);
+  if (latest.vehicle_safe_ready === false) items.push('driver did not mark "safe and ready for work"');
+  return items;
+}
+
+function showGroundedBanner(latest) {
+  document.getElementById("inspGroundedBanner").hidden = false;
+  const defects = defectSummary(latest);
+  document.getElementById("inspGroundedDetails").innerHTML = `
+    <p>Reported by <strong>${latest.employees?.name || "unknown"}</strong> on ${formatDateTime(latest.signed_at) || latest.log_date}.</p>
+    <p>Defect items: <strong>${defects.join(", ") || "see remarks"}</strong></p>
+    ${latest.notes ? `<p class="muted">Remarks: ${latest.notes}</p>` : ""}
+    <p>This vehicle can't be used again until an admin certifies it's fixed or safe to operate.</p>
+    <button type="button" class="secondary" data-view-inspection="${latest.id}">View Full Report</button>
+  `;
+  document.getElementById("inspGroundedDetails").querySelector("[data-view-inspection]")
+    .addEventListener("click", () => viewInspectionReport(latest.id));
+  inspCertifyInspectionId = latest.id;
+  const certForm = document.getElementById("inspCertifyForm");
+  certForm.hidden = currentEmployee.role !== "admin";
+  document.getElementById("certNotes").value = "";
+  document.querySelectorAll('input[name="certOutcome"]').forEach((r) => (r.checked = false));
+  certSig.clear();
+  showMsg(document.getElementById("certifyMsg"), "", "");
+}
+
+document.getElementById("certifyBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("certifyMsg");
+  const outcome = document.querySelector('input[name="certOutcome"]:checked')?.value;
+  if (!outcome) { showMsg(msgEl, "Choose whether the defects were corrected or don't need to be.", "error"); return; }
+  if (certSig.isEmpty()) { showMsg(msgEl, "A signature is required to certify.", "error"); return; }
+
+  const signaturePath = await uploadSignature(certSig.getDataUrl(), "certifications");
+  const { error } = await sb.from("inspection_certifications").insert({
+    org_id: ORG_ID,
+    inspection_id: inspCertifyInspectionId,
+    certified_by: currentEmployee.id,
+    outcome,
+    certification_notes: document.getElementById("certNotes").value.trim() || null,
+    signature_data: signaturePath,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "Vehicle certified.", "ok");
+  await loadInspectionsForVehicle();
+  loadDashboard();
+});
+
+function showReviewBanner(latest, cert) {
+  document.getElementById("inspReviewBanner").hidden = false;
+  const defects = defectSummary(latest);
+  const outcomeText = cert.outcome === "corrected" ? "defects corrected" : "defects do not need to be corrected — safe to operate";
+  document.getElementById("inspReviewDetails").innerHTML = `
+    <p>The last inspection on ${formatDateTime(latest.signed_at) || latest.log_date} found a defect with: <strong>${defects.join(", ") || "see remarks"}</strong></p>
+    <p>Certified by <strong>${cert.employees?.name || "an admin"}</strong> on ${formatDateTime(cert.certified_at)} — ${outcomeText}${cert.certification_notes ? `: ${cert.certification_notes}` : "."}</p>
+    <p>Read this over, then tap the button below before doing today's inspection.</p>
+    <button type="button" class="secondary" data-view-inspection="${latest.id}">View Full Report</button>
+  `;
+  document.getElementById("inspReviewDetails").querySelector("[data-view-inspection]")
+    .addEventListener("click", () => viewInspectionReport(latest.id));
+  inspReviewInspectionId = latest.id;
+  showMsg(document.getElementById("reviewAckMsg"), "", "");
+}
+
+document.getElementById("ackReviewBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("reviewAckMsg");
+  const { error } = await sb.from("inspection_reviews").insert({
+    org_id: ORG_ID,
+    inspection_id: inspReviewInspectionId,
+    reviewed_by: currentEmployee.id,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  await loadInspectionsForVehicle();
+});
+
+async function showTodayInspectionForm() {
+  const formCard = document.getElementById("inspFormCard");
+  formCard.hidden = false;
+  showMsg(document.getElementById("inspMsg"), "", "");
+
+  const { data: todays } = await sb
+    .from("inspections")
+    .select("*")
+    .eq("vehicle_id", inspVehicleId)
+    .eq("log_date", todayStr())
+    .maybeSingle();
+
+  const doneMsg = document.getElementById("inspAlreadyDone");
+  const metaWrap = document.getElementById("inspMetaWrap");
+  const notesWrap = document.getElementById("inspNotesWrap");
+  const attestWrap = document.getElementById("inspAttestWrap");
+  const signWrap = document.getElementById("inspSignWrap");
+  const timestampEl = document.getElementById("inspTimestamp");
+
+  if (todays && todays.signed_at) {
+    const defects = defectSummary(todays);
+    doneMsg.hidden = false;
+    const summaryText = todays.has_defect
+      ? `Today's inspection is done — a defect was reported: ${defects.join(", ")}. This vehicle is grounded until an admin certifies it.`
+      : "Today's inspection is done — everything checked OK.";
+    doneMsg.innerHTML = `<p>${summaryText}</p><button type="button" class="secondary" data-view-inspection="${todays.id}">View Full Report</button>`;
+    doneMsg.querySelector("[data-view-inspection]").addEventListener("click", () => viewInspectionReport(todays.id));
+    timestampEl.textContent = `Signed ${formatDateTime(todays.signed_at)}`;
+    document.getElementById("inspChecklist").innerHTML = "";
+    document.getElementById("inspChecklistHint").hidden = true;
+    metaWrap.hidden = true;
+    notesWrap.hidden = true;
+    attestWrap.hidden = true;
+    signWrap.hidden = true;
+    return;
+  }
+
+  doneMsg.hidden = true;
+  timestampEl.textContent = "Not signed yet";
+  document.getElementById("inspChecklistHint").hidden = false;
+  metaWrap.hidden = false;
+  notesWrap.hidden = false;
+  attestWrap.hidden = false;
+  signWrap.hidden = false;
+  document.getElementById("inspTruckNumber").value = "";
+  document.getElementById("inspTrailerNumber").value = "";
+  document.getElementById("inspOdometer").value = "";
+  document.getElementById("inspNotes").value = "";
+  document.getElementById("inspMaterialsSecure").checked = false;
+  document.getElementById("inspSafeReady").checked = false;
+  inspSig.clear();
+  renderChecklist("inspChecklist", DVIR_ITEMS, inspItemStatuses);
+}
+
+document.getElementById("submitInspectionBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("inspMsg");
+  const odometer = document.getElementById("inspOdometer").value.trim();
+  const truckNumber = document.getElementById("inspTruckNumber").value.trim();
+  const trailerNumber = document.getElementById("inspTrailerNumber").value.trim();
+
+  if (!truckNumber) { showMsg(msgEl, "Vehicle # is required.", "error"); return; }
+  if (!trailerNumber) { showMsg(msgEl, "Trailer/Equipment # is required.", "error"); return; }
+  if (!odometer) { showMsg(msgEl, "Look at the odometer and enter the reading.", "error"); return; }
+  if (Object.keys(inspItemStatuses).length < DVIR_ITEMS.length) {
+    showMsg(msgEl, "Mark every item OK, N/A, or Defect before signing.", "error");
+    return;
+  }
+  if (inspSig.isEmpty()) {
+    showMsg(msgEl, "A signature is required to submit the inspection.", "error");
+    return;
+  }
+
+  const items = DVIR_ITEMS.map((label, idx) => ({ label, status: inspItemStatuses[idx] }));
+  const vehicleSafeReady = document.getElementById("inspSafeReady").checked;
+  const hasDefect = items.some((i) => i.status === "defect") || !vehicleSafeReady;
+
+  const signaturePath = await uploadSignature(inspSig.getDataUrl(), "inspections");
+  const { error } = await sb.from("inspections").insert({
+    org_id: ORG_ID,
+    employee_id: currentEmployee.id,
+    vehicle_id: inspVehicleId,
+    log_date: todayStr(),
+    odometer,
+    truck_number: truckNumber,
+    trailer_equipment_number: trailerNumber,
+    items,
+    materials_secure: document.getElementById("inspMaterialsSecure").checked,
+    vehicle_safe_ready: vehicleSafeReady,
+    has_defect: hasDefect,
+    notes: document.getElementById("inspNotes").value.trim() || null,
+    signature_data: signaturePath,
+    signed_at: new Date().toISOString(),
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, hasDefect
+    ? "Inspection submitted. A defect was reported — this vehicle is now grounded until an admin certifies it."
+    : "Inspection submitted. Everything checked OK.", "ok");
+  await loadInspectionsForVehicle();
+  loadDashboard();
+});
+
+async function loadInspectionHistory() {
+  if (!inspVehicleId) return;
+  const { data: logs } = await sb
+    .from("inspections")
+    .select("*, employees(name)")
+    .eq("vehicle_id", inspVehicleId)
+    .order("log_date", { ascending: false })
+    .limit(10);
+  const tbody = document.querySelector("#inspHistoryTable tbody");
+  tbody.innerHTML = "";
+  (logs || []).forEach((l) => {
+    const result = l.has_defect
+      ? `<span style="color:var(--danger);font-weight:600;">Defect reported</span>`
+      : `<span style="color:var(--ok);">OK</span>`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${formatDateTime(l.signed_at) || l.log_date}</td><td>${result}</td><td>${l.employees?.name || ""}</td><td><button class="secondary" data-view-inspection="${l.id}">View</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-view-inspection]").forEach((btn) => {
+    btn.addEventListener("click", () => viewInspectionReport(btn.dataset.viewInspection));
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Standalone DVIR report — a full, printable copy of one signed inspection,
+// meant to stand on its own for DOT recordkeeping (matches the "White
+// Copy: Shop" idea from the old paper book — a record that doesn't depend
+// on being logged into the app to read).
+// ---------------------------------------------------------------------------
+async function viewInspectionReport(inspectionId) {
+  const { data: insp } = await sb
+    .from("inspections")
+    .select("*, employees(name), vehicles(unit_id)")
+    .eq("id", inspectionId)
+    .single();
+  if (!insp) return;
+
+  const { data: cert } = await sb
+    .from("inspection_certifications")
+    .select("*, employees(name)")
+    .eq("inspection_id", inspectionId)
+    .order("certified_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const [inspSigUrl, certSigUrl] = await Promise.all([
+    resolveSignatureUrl(insp.signature_data),
+    cert ? resolveSignatureUrl(cert.signature_data) : Promise.resolve(null),
+  ]);
+
+  const statusLabel = { ok: "OK", na: "N/A", defect: "Defect" };
+  const statusColor = { ok: "var(--ok)", na: "#777", defect: "var(--danger)" };
+  const itemRows = (insp.items || []).map((i) => `
+    <tr>
+      <td>${i.label}</td>
+      <td style="color:${statusColor[i.status] || "#333"};font-weight:600;">
+        ${statusLabel[i.status] || i.status}
+      </td>
+    </tr>`).join("");
+
+  const certHtml = cert ? `
+    <div class="cert-section">
+      <h1 style="font-size:15px;">Certification</h1>
+      <div class="meta-grid">
+        <div><span>Outcome</span>${cert.outcome === "corrected" ? "Above defects corrected" : "Above defects do not need to be corrected"}</div>
+        <div><span>Certified By</span>${cert.employees?.name || ""}</div>
+        <div><span>Certified</span>${formatDateTime(cert.certified_at)}</div>
+      </div>
+      ${cert.certification_notes ? `<p><strong>Notes:</strong> ${cert.certification_notes}</p>` : ""}
+      ${certSigUrl ? `<div class="sig-block"><img src="${certSigUrl}" alt="Certifying signature" /><span class="muted">Signature</span></div>` : ""}
+    </div>` : "";
+
+  document.getElementById("dvirReportContent").innerHTML = `
+    <div class="dvir-report">
+      <h1>Driver's Vehicle Inspection Report</h1>
+      <p class="subhead">AS REQUIRED BY THE D.O.T. FEDERAL MOTOR CARRIER SAFETY REGULATIONS</p>
+      <div class="meta-grid">
+        <div><span>Date &amp; Time</span>${formatDateTime(insp.signed_at) || insp.log_date}</div>
+        <div><span>Vehicle</span>${insp.vehicles?.unit_id || ""}</div>
+        <div><span>Vehicle #</span>${insp.truck_number || "—"}</div>
+        <div><span>Trailer/Equipment #</span>${insp.trailer_equipment_number || "—"}</div>
+        <div><span>Odometer Reading</span>${insp.odometer ?? "—"}</div>
+        <div><span>Driver</span>${insp.employees?.name || ""}</div>
+        <div><span>Materials &amp; Equipment Secure</span>${insp.materials_secure ? "Yes" : "No"}</div>
+        <div><span>Safe and Ready for Work</span>${insp.vehicle_safe_ready ? "Yes" : "No"}</div>
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th>Status</th></tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+      ${insp.notes ? `<p><strong>Remarks:</strong> ${insp.notes}</p>` : ""}
+      ${inspSigUrl ? `<div class="sig-block"><img src="${inspSigUrl}" alt="Driver signature" /><span class="muted">Driver Signature — ${insp.employees?.name || ""}, signed ${formatDateTime(insp.signed_at)}</span></div>` : ""}
+      ${certHtml}
+    </div>
+  `;
+  document.getElementById("dvirReportOverlay").hidden = false;
+}
+
+document.getElementById("dvirReportClose").addEventListener("click", () => {
+  document.getElementById("dvirReportOverlay").hidden = true;
+});
+
+// Printing opens a brand-new, empty browser tab and writes ONLY the report
+// into it — nothing from the app (no header, no tabs, no vehicle picker)
+// ever exists in that tab at all, so there's nothing else for the print
+// dialog or a saved PDF to pick up.
+document.getElementById("dvirReportPrint").addEventListener("click", () => {
+  const reportHtml = document.getElementById("dvirReportContent").innerHTML;
+  const printWin = window.open("", "_blank");
+  if (!printWin) {
+    alert("Your browser blocked the print window. Allow pop-ups for this site and try again.");
+    return;
+  }
+  printWin.document.open();
+  printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Driver's Vehicle Inspection Report</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #222; margin: 24px; }
+  h1 { font-size: 18px; margin: 0 0 2px; }
+  .subhead { font-size: 11px; color: #666; margin: 0 0 14px; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 14px; margin-bottom: 14px; }
+  .meta-grid div span { color: #666; font-size: 12px; display: block; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 14px; }
+  table td, table th { border-bottom: 1px solid #ddd; padding: 5px 4px; text-align: left; }
+  .sig-block { margin-top: 10px; }
+  .sig-block img { max-width: 300px; display: block; border-bottom: 1px solid #ddd; margin-bottom: 4px; }
+  .cert-section { margin-top: 16px; padding-top: 12px; border-top: 2px solid #ddd; }
+  .muted { color: #888; font-size: 13px; }
+</style>
+</head>
+<body>
+${reportHtml}
+</body>
+</html>`);
+  printWin.document.close();
+  printWin.onload = () => { printWin.focus(); printWin.print(); };
+});
+
+// ---------------------------------------------------------------------------
+// POWER TOOLS — tracked either against one vehicle or the general
+// Warehouse/Shop stock (vehicle_id left blank covers that). Any employee
+// can add a tool or update it (status), only an admin can delete one, same
+// rule used everywhere else in the app.
+// ---------------------------------------------------------------------------
+let toolsLocationId = ""; // "" means Warehouse / Shop (vehicle_id is null)
+let suppliesLocationId = ""; // same idea, its own independent picker on the Supplies tab
+
+// Shared by both the Power Tools and Supplies location pickers - fills the
+// dropdown with Warehouse/Shop plus every vehicle, and carries the
+// previous selection forward if it's still valid (e.g. after a vehicle
+// list refresh), same as every other vehicle picker in the app.
+async function populateLocationSelect(selectId, currentValue) {
+  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = "";
+  const whOpt = document.createElement("option");
+  whOpt.value = "";
+  whOpt.textContent = "Warehouse / Shop (not on a vehicle)";
+  sel.appendChild(whOpt);
+  (vehicles || []).forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.unit_id;
+    sel.appendChild(opt);
+  });
+  const stillValid = currentValue === "" || vehicles?.some((v) => v.id === currentValue);
+  const resolved = stillValid ? currentValue : "";
+  sel.value = resolved;
+  return resolved;
+}
+
+document.getElementById("toolsLocation").addEventListener("change", async (e) => {
+  toolsLocationId = e.target.value;
+  await loadTools();
+});
+
+async function loadToolsTab() {
+  toolsLocationId = await populateLocationSelect("toolsLocation", toolsLocationId);
+  await loadTools();
+}
+
+function toolsQuery(query) {
+  return toolsLocationId ? query.eq("vehicle_id", toolsLocationId) : query.is("vehicle_id", null);
+}
+
+async function loadTools() {
+  const { data: tools } = await toolsQuery(sb.from("tools").select("*")).order("name");
+  const tbody = document.querySelector("#toolsTable tbody");
+  tbody.innerHTML = "";
+  (tools || []).forEach((t) => {
+    const tr = document.createElement("tr");
+    const statusSel = `<select data-tool-status="${t.id}">
+      <option value="ok"${t.status === "ok" ? " selected" : ""}>OK</option>
+      <option value="needs_repair"${t.status === "needs_repair" ? " selected" : ""}>Needs Repair</option>
+      <option value="missing"${t.status === "missing" ? " selected" : ""}>Missing / Lost</option>
+    </select>`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-tool="${t.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${t.name}</td><td>${t.serial_number || "—"}</td><td>${statusSel}</td><td>${t.notes || "—"}</td><td>${delBtn}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-tool-status]").forEach((sel) => {
+    sel.addEventListener("change", async () => {
+      await sb.from("tools").update({ status: sel.value, updated_at: new Date().toISOString() }).eq("id", sel.dataset.toolStatus);
+      loadDashboard();
+    });
+  });
+  tbody.querySelectorAll("[data-del-tool]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this tool?")) return;
+      await sb.from("tools").delete().eq("id", btn.dataset.delTool);
+      loadTools();
+    });
+  });
+}
+
+document.getElementById("addToolBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("toolMsg");
+  const name = document.getElementById("toolName").value.trim();
+  if (!name) { showMsg(msgEl, "Enter a tool name.", "error"); return; }
+
+  const { error } = await sb.from("tools").insert({
+    org_id: ORG_ID,
+    vehicle_id: toolsLocationId || null,
+    name,
+    serial_number: document.getElementById("toolSerial").value.trim() || null,
+    status: document.getElementById("toolStatus").value,
+    notes: document.getElementById("toolNotes").value.trim() || null,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "Tool added.", "ok");
+  document.getElementById("toolName").value = "";
+  document.getElementById("toolSerial").value = "";
+  document.getElementById("toolStatus").value = "ok";
+  document.getElementById("toolNotes").value = "";
+  loadTools();
+  loadDashboard();
+});
+
+// ---------------------------------------------------------------------------
+// SUPPLIES — same location-picker idea as Power Tools, plus its own Restock
+// List underneath: any employee can flag an item that's running low or out,
+// from any vehicle or the shop, and an admin then marks it either "Reorder"
+// (need to buy more) or "Will Call" (already in stock, just needs a driver
+// to swing by and grab it) - matching how a real parts counter works.
+// ---------------------------------------------------------------------------
+document.getElementById("suppliesLocation").addEventListener("change", async (e) => {
+  suppliesLocationId = e.target.value;
+  await loadSupplies();
+});
+
+async function loadSuppliesTab() {
+  suppliesLocationId = await populateLocationSelect("suppliesLocation", suppliesLocationId);
+  await loadSupplies();
+  await loadRestockList();
+}
+
+function suppliesQuery(query) {
+  return suppliesLocationId ? query.eq("vehicle_id", suppliesLocationId) : query.is("vehicle_id", null);
+}
+
+async function loadSupplies() {
+  const { data: supplies } = await suppliesQuery(sb.from("supplies").select("*")).order("name");
+  const tbody = document.querySelector("#suppliesTable tbody");
+  tbody.innerHTML = "";
+  (supplies || []).forEach((s) => {
+    const tr = document.createElement("tr");
+    const qtyInput = `<input type="number" inputmode="numeric" style="margin:0;padding:6px;" data-supply-qty="${s.id}" value="${s.quantity ?? ""}" />`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-supply="${s.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${s.name}</td><td>${qtyInput}</td><td>${s.notes || "—"}</td><td>${delBtn}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-supply-qty]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const qty = input.value.trim();
+      await sb.from("supplies").update({ quantity: qty || null, updated_at: new Date().toISOString() }).eq("id", input.dataset.supplyQty);
+      loadDashboard();
+    });
+  });
+  tbody.querySelectorAll("[data-del-supply]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this supply?")) return;
+      await sb.from("supplies").delete().eq("id", btn.dataset.delSupply);
+      loadSupplies();
+    });
+  });
+}
+
+document.getElementById("addSupplyBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("supplyMsg");
+  const name = document.getElementById("supplyName").value.trim();
+  if (!name) { showMsg(msgEl, "Enter a supply name.", "error"); return; }
+
+  const { error } = await sb.from("supplies").insert({
+    org_id: ORG_ID,
+    vehicle_id: suppliesLocationId || null,
+    name,
+    quantity: document.getElementById("supplyQuantity").value.trim() || null,
+    notes: document.getElementById("supplyNotes").value.trim() || null,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "Supply added.", "ok");
+  document.getElementById("supplyName").value = "";
+  document.getElementById("supplyQuantity").value = "";
+  document.getElementById("supplyNotes").value = "";
+  loadSupplies();
+});
+
+const RESTOCK_STATUS_LABELS = { requested: "Needs Action", reorder: "Reordering", will_call: "Ready for Pickup (Will Call)", fulfilled: "Fulfilled" };
+const RESTOCK_STATUS_CLASSES = { requested: "warning", reorder: "", will_call: "", fulfilled: "done" };
+
+// Restock List is company-wide, not filtered by the location picker above -
+// nothing an admin needs to act on should be hidden just because a
+// different vehicle happens to be selected right now.
+async function loadRestockList() {
+  const { data: requests } = await sb
+    .from("restock_requests")
+    .select("*, employees(name), vehicles(unit_id)")
+    .order("created_at", { ascending: false });
+  const tbody = document.querySelector("#restockTable tbody");
+  tbody.innerHTML = "";
+  (requests || []).forEach((r) => {
+    const tr = document.createElement("tr");
+    const statusLabel = RESTOCK_STATUS_LABELS[r.status] || r.status;
+    const statusClass = RESTOCK_STATUS_CLASSES[r.status] || "";
+    let actions = "";
+    if (r.status === "requested" && currentEmployee.role === "admin") {
+      actions = `<button type="button" class="secondary" data-restock-action="${r.id}" data-restock-status="reorder">Reorder</button> <button type="button" class="secondary" data-restock-action="${r.id}" data-restock-status="will_call">Will Call</button>`;
+    } else if (r.status === "reorder" || r.status === "will_call") {
+      actions = `<button type="button" class="secondary" data-restock-action="${r.id}" data-restock-status="fulfilled">Mark Fulfilled</button>`;
+    }
+    if (currentEmployee.role === "admin") {
+      actions += ` <button type="button" class="danger" data-del-restock="${r.id}">Delete</button>`;
+    }
+    tr.innerHTML = `<td>${r.item_name}</td><td>${r.quantity_needed || "—"}</td><td>${r.employees?.name || ""}</td><td>${r.vehicles?.unit_id || "Warehouse/Shop"}</td><td><span class="pill ${statusClass}">${statusLabel}</span></td><td>${actions}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-restock-action]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await sb.from("restock_requests").update({ status: btn.dataset.restockStatus, updated_at: new Date().toISOString() }).eq("id", btn.dataset.restockAction);
+      loadRestockList();
+      loadDashboard();
+    });
+  });
+  tbody.querySelectorAll("[data-del-restock]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this restock request?")) return;
+      await sb.from("restock_requests").delete().eq("id", btn.dataset.delRestock);
+      loadRestockList();
+      loadDashboard();
+    });
+  });
+}
+
+document.getElementById("addRestockBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("restockMsg");
+  const itemName = document.getElementById("restockItemName").value.trim();
+  if (!itemName) { showMsg(msgEl, "Enter an item name.", "error"); return; }
+
+  const { error } = await sb.from("restock_requests").insert({
+    org_id: ORG_ID,
+    item_name: itemName,
+    quantity_needed: document.getElementById("restockQty").value.trim() || null,
+    notes: document.getElementById("restockNotes").value.trim() || null,
+    requested_by: currentEmployee.id,
+    vehicle_id: suppliesLocationId || null,
+    status: "requested",
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  showMsg(msgEl, "Added to restock list.", "ok");
+  document.getElementById("restockItemName").value = "";
+  document.getElementById("restockQty").value = "";
+  document.getElementById("restockNotes").value = "";
+  loadRestockList();
+  loadDashboard();
+});
+
+// ---------------------------------------------------------------------------
+// HOURS OF SERVICE — a simplified on-duty time record for the DOT 150
+// air-mile radius short-haul exemption (49 CFR 395.1(e)), instead of a full
+// driver's log. One entry per employee per day; the app computes the hours
+// from clock in/out times. The 7-day duty cycle (49 CFR 395.3(c)) is a
+// FIXED period, not a rolling window — and it's tracked purely by real
+// calendar dates, never by weekday names. Each employee has their own
+// anchor date (set in Employees Admin) that their cycle is counted from;
+// it repeats every 7 days from there, so two drivers can be on entirely
+// different cycles at once without the app ever needing to know or show
+// which day of the week either one falls on.
+// The daily limit itself also depends on which vehicle was actually driven
+// that day, not just who the driver is: 395.1(e)(1) gives a flat 14
+// consecutive hours to any day spent in a vehicle that needs a CDL (by
+// weight, hazmat placarding, or a 16+ passenger capacity including the
+// driver); 395.1(e)(2) gives non-CDL days more slack — up to 14 hours on
+// most days, up to 16 hours on as many as 2 days in any 7-day period.
+// Since the same employee can drive a CDL vehicle one day and a non-CDL
+// one the next, each hos_logs row carries its own requires_cdl box
+// (checked on the Log Your Hours form that day) rather than relying on one
+// fixed setting for the whole person — the employees.requires_cdl column
+// is only ever used as that form's pre-checked default. hosDailyStatuses()
+// below applies each day's own box when it works out that day's status.
+// ---------------------------------------------------------------------------
+function dateToStr(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function parseDateStr(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function todayMidnight() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+// The start date of the 7-day cycle (counted from anchorStr) that contains referenceDate.
+function startOfCycleFromAnchor(anchorStr, referenceDate) {
+  const anchor = parseDateStr(anchorStr);
+  const diffDays = Math.floor((referenceDate - anchor) / 86400000);
+  const cyclesElapsed = Math.floor(diffDays / 7);
+  const start = new Date(anchor);
+  start.setDate(anchor.getDate() + cyclesElapsed * 7);
+  return start;
+}
+
+// Decimal hours between two "HH:MM" times, handling a shift that runs past midnight.
+function hoursBetween(startStr, endStr) {
+  if (!startStr || !endStr) return null;
+  const [sh, sm] = startStr.split(":").map(Number);
+  const [eh, em] = endStr.split(":").map(Number);
+  let startMin = sh * 60 + sm;
+  let endMin = eh * 60 + em;
+  if (endMin < startMin) endMin += 24 * 60;
+  return Math.round(((endMin - startMin) / 60) * 100) / 100;
+}
+
+// The daily limit (49 CFR 395.1(e)) depends on whether that day's vehicle
+// needed a CDL: a flat 14 hours if so, or up to 14 hours most days with up
+// to 16 hours allowed on as many as 2 days per 7-day cycle if not. Since
+// an employee can drive a different vehicle on different days, this is
+// checked per LOGGED DAY (each row has its own requires_cdl) rather than
+// one fixed setting for the whole person. rowsInOrder must be that one
+// cycle's hos_logs rows sorted by log_date ascending, so the
+// 2-extended-days count is applied in the right order.
+function hosDailyStatuses(rowsInOrder) {
+  const statuses = {};
+  let extendedDaysUsed = 0;
+  for (const r of rowsInOrder) {
+    const hours = Number(r.on_duty_hours) || 0;
+    const requiresCdl = r.requires_cdl ?? true;
+    if (requiresCdl) {
+      statuses[r.log_date] = hours > 14 ? "violation" : "ok";
+    } else if (hours <= 14) {
+      statuses[r.log_date] = "ok";
+    } else if (hours <= 16 && extendedDaysUsed < 2) {
+      statuses[r.log_date] = "extended";
+      extendedDaysUsed++;
+    } else {
+      statuses[r.log_date] = "violation";
+    }
+  }
+  return statuses;
+}
+
+function updateHosDayLimitHint() {
+  const requiresCdl = document.getElementById("hosRequiresCdl").checked;
+  document.getElementById("hosDayLimitHint").textContent = requiresCdl
+    ? "This day's limit: 14 hours (CDL)."
+    : "This day's limit: 14 hours, unless it's one of the 2 extended days this cycle allows — then up to 16 hours (non-CDL).";
+}
+
+// The signature requirement itself is each company's own policy choice
+// (see the Hours of Service Policy card in Employees (Admin)), so this
+// note — and whether Save actually enforces it — follows orgSettings
+// rather than being fixed in the app.
+function updateHosSigRequirementNote() {
+  document.getElementById("hosSigRequirementNote").textContent = orgSettings.hos_require_signature
+    ? "Required by your company's policy — a day won't save without a signature."
+    : "Optional at your company — you can still sign to certify this day if you'd like.";
+}
+
+async function loadHosTab() {
+  document.getElementById("hosDate").value = todayStr();
+  document.getElementById("hosStart").value = "";
+  document.getElementById("hosEnd").value = "";
+  document.getElementById("hosWithinRadius").checked = true;
+  document.getElementById("hosRequiresCdl").checked = currentEmployee.requires_cdl ?? true;
+  document.getElementById("hosNotes").value = "";
+  hosCurrentSignaturePath = null;
+  hosSig.clear();
+  updateHosDayLimitHint();
+  updateHosSigRequirementNote();
+  showMsg(document.getElementById("hosMsg"), "", "");
+  await loadHosWeek();
+}
+
+document.getElementById("hosDate").addEventListener("change", async () => {
+  const dateStr = document.getElementById("hosDate").value;
+  if (!dateStr) return;
+  const { data: existing } = await sb.from("hos_logs").select("*")
+    .eq("employee_id", currentEmployee.id).eq("log_date", dateStr).maybeSingle();
+  document.getElementById("hosStart").value = existing?.on_duty_start?.slice(0, 5) || "";
+  document.getElementById("hosEnd").value = existing?.on_duty_end?.slice(0, 5) || "";
+  document.getElementById("hosWithinRadius").checked = existing ? !!existing.within_radius : true;
+  document.getElementById("hosRequiresCdl").checked = existing ? !!existing.requires_cdl : (currentEmployee.requires_cdl ?? true);
+  document.getElementById("hosNotes").value = existing?.notes || "";
+  hosCurrentSignaturePath = existing?.signature_data || null;
+  hosSig.clear();
+  updateHosDayLimitHint();
+  updateHosSigRequirementNote();
+});
+
+document.getElementById("hosRequiresCdl").addEventListener("change", updateHosDayLimitHint);
+
+document.getElementById("saveHosBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("hosMsg");
+  const logDate = document.getElementById("hosDate").value;
+  const start = document.getElementById("hosStart").value;
+  const end = document.getElementById("hosEnd").value;
+  if (!logDate || !start || !end) { showMsg(msgEl, "Enter the date, on-duty start time, and on-duty end time.", "error"); return; }
+  if (orgSettings.hos_require_signature && hosSig.isEmpty()) { showMsg(msgEl, "Sign to certify this day's hours are accurate — required by your company's policy.", "error"); return; }
+  const requiresCdl = document.getElementById("hosRequiresCdl").checked;
+
+  const signaturePath = hosSig.isEmpty() ? hosCurrentSignaturePath : await uploadSignature(hosSig.getDataUrl(), "hours_of_service");
+  const { error } = await sb.from("hos_logs").upsert({
+    org_id: ORG_ID,
+    employee_id: currentEmployee.id,
+    log_date: logDate,
+    on_duty_start: start,
+    on_duty_end: end,
+    on_duty_hours: hoursBetween(start, end),
+    within_radius: document.getElementById("hosWithinRadius").checked,
+    requires_cdl: requiresCdl,
+    notes: document.getElementById("hosNotes").value.trim() || null,
+    signature_data: signaturePath,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "employee_id,log_date" });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+
+  hosCurrentSignaturePath = signaturePath;
+  hosSig.clear();
+  const dailyStatus = await loadHosWeek();
+  const statusThisDay = dailyStatus[logDate];
+  showMsg(msgEl, statusThisDay === "violation" ? "Saved — but this day went over its Hours of Service limit." : "Saved.", statusThisDay === "violation" ? "error" : "ok");
+  loadDashboard();
+});
+
+async function loadHosWeek() {
+  const cycleStart = startOfCycleFromAnchor(currentEmployee.hos_cycle_anchor_date, todayMidnight());
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(cycleStart);
+    d.setDate(cycleStart.getDate() + i);
+    days.push(d);
+  }
+  const cycleStartStr = dateToStr(days[0]);
+  const cycleEndStr = dateToStr(days[6]);
+  document.getElementById("hosCycleRange").textContent = `${cycleStartStr} through ${cycleEndStr}`;
+
+  document.getElementById("hosDailyLimitNote").textContent =
+    "Each day's limit depends on the CDL box checked when it was logged: 14 hours if checked, or up to 14 hours (up to 16 on as many as 2 days this cycle) if not.";
+
+  const { data: rows } = await sb.from("hos_logs").select("*")
+    .eq("employee_id", currentEmployee.id).gte("log_date", cycleStartStr).lte("log_date", cycleEndStr)
+    .order("log_date");
+  const rowByDate = {};
+  (rows || []).forEach((r) => { rowByDate[r.log_date] = r; });
+  const dailyStatus = hosDailyStatuses(rows || []);
+
+  const total = (rows || []).reduce((sum, r) => sum + (Number(r.on_duty_hours) || 0), 0);
+  const remaining = HOS_CYCLE_LIMIT - total;
+  document.getElementById("hosCycleSummary").innerHTML = remaining >= 0
+    ? `${total.toFixed(1)} of ${HOS_CYCLE_LIMIT} hours used — ${remaining.toFixed(1)} remaining this cycle.`
+    : `<span style="color:var(--danger, #B00020);">${total.toFixed(1)} of ${HOS_CYCLE_LIMIT} hours used — ${Math.abs(remaining).toFixed(1)} OVER the limit.</span>`;
+
+  const STATUS_LABELS = { ok: `<span class="pill done">OK</span>`, extended: `<span class="pill warning">Extended (16h)</span>`, violation: `<span class="pill urgent">Over Limit</span>` };
+
+  const signedUrlByDate = {};
+  await Promise.all((rows || []).map(async (r) => {
+    signedUrlByDate[r.log_date] = await resolveSignatureUrl(r.signature_data);
+  }));
+
+  const tbody = document.querySelector("#hosWeekTable tbody");
+  tbody.innerHTML = "";
+  days.forEach((d) => {
+    const dateStr = dateToStr(d);
+    const row = rowByDate[dateStr];
+    const tr = document.createElement("tr");
+    const onDuty = row ? `${row.on_duty_start?.slice(0, 5)}–${row.on_duty_end?.slice(0, 5)}` : "—";
+    const hours = row?.on_duty_hours != null ? row.on_duty_hours : "—";
+    const radius = row ? (row.within_radius ? "Yes" : "No") : "—";
+    const status = row ? (STATUS_LABELS[dailyStatus[dateStr]] || "—") : "—";
+    const signed = signedUrlByDate[dateStr] ? `<button type="button" class="secondary" data-view-hos-sig="${dateStr}">View</button>` : "—";
+    tr.innerHTML = `<td>${dateStr}</td><td>${onDuty}</td><td>${hours}</td><td>${radius}</td><td>${status}</td><td>${signed}</td>` +
+      `<td><button class="secondary" data-edit-hos="${dateStr}">Edit</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-edit-hos]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.getElementById("hosDate").value = btn.dataset.editHos;
+      document.getElementById("hosDate").dispatchEvent(new Event("change"));
+      switchTab("hos");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+  tbody.querySelectorAll("[data-view-hos-sig]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const url = signedUrlByDate[btn.dataset.viewHosSig];
+      if (url) window.open(url, "_blank");
+    });
+  });
+  return dailyStatus;
+}
+
+// ---------------------------------------------------------------------------
+// MAINTENANCE INTERVALS (admin only) — category uses the same standard
+// list as the Maintenance Log, so a rule set up here always matches what
+// gets logged later. Registration/Smog defaults to a 365-day reminder,
+// since renewing once a year is the whole point of tracking it.
+// ---------------------------------------------------------------------------
+async function populateIntervalCategoryList() {
+  const sel = document.getElementById("intervalCategory");
+  const previousValue = sel.value;
+  sel.innerHTML = "";
+  MAINT_CATEGORIES.forEach((cat) => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    sel.appendChild(opt);
+  });
+  const otherOpt = document.createElement("option");
+  otherOpt.value = "__other__";
+  otherOpt.textContent = "Other (type a new category)";
+  sel.appendChild(otherOpt);
+  if (previousValue) sel.value = previousValue;
+  toggleIntervalCategoryOther();
+}
+
+function toggleIntervalCategoryOther() {
+  const val = document.getElementById("intervalCategory").value;
+  document.getElementById("intervalCategoryOther").hidden = val !== "__other__";
+  const hint = document.getElementById("intervalHint");
+  const daysField = document.getElementById("intervalDays");
+  const isRegSmog = val === "Registration/Smog";
+  document.getElementById("intervalSmogDaysWrap").hidden = !isRegSmog;
+  document.getElementById("intervalDaysLabel").textContent = isRegSmog ? "Registration — Every X Days" : "Every X Days (optional)";
+  if (isRegSmog) {
+    if (!daysField.value) daysField.value = "365";
+    const smogField = document.getElementById("intervalSmogDays");
+    if (!smogField.value) smogField.value = "730";
+    hint.textContent = "Registration defaults to every 365 days, Smog to every 730 days (2 years) — change either if this vehicle's cycle is different.";
+  } else {
+    hint.textContent = "";
+    document.getElementById("intervalSmogDays").value = "";
+  }
+}
+
+document.getElementById("intervalCategory").addEventListener("change", toggleIntervalCategoryOther);
+
+async function loadIntervals() {
+  await populateIntervalCategoryList();
+  const { data: intervals } = await sb
+    .from("maintenance_intervals")
+    .select("*, vehicles(unit_id)")
+    .order("category");
+  const tbody = document.querySelector("#intervalTable tbody");
+  tbody.innerHTML = "";
+  (intervals || []).forEach((i) => {
+    const isRegSmog = i.category === "Registration/Smog";
+    const rule = [
+      i.interval_miles ? `every ${i.interval_miles} mi` : null,
+      i.interval_days ? `every ${i.interval_days} days${isRegSmog ? " (registration)" : ""}` : null,
+      isRegSmog && i.smog_interval_days ? `every ${i.smog_interval_days} days (smog)` : null,
+    ].filter(Boolean).join(" / ") || "—";
+    const nextDue = [
+      i.next_due_mileage ? `${i.next_due_mileage} mi` : null,
+      i.next_due_date ? `${i.next_due_date}${isRegSmog ? " (reg.)" : ""}` : null,
+      isRegSmog && i.smog_next_due_date ? `${i.smog_next_due_date} (smog)` : null,
+    ].filter(Boolean).join(" / ") || "—";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${i.vehicles?.unit_id || ""}</td><td>${i.category}</td><td>${rule}</td><td>${nextDue}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("addIntervalBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("intervalMsg");
+  const vehicleId = document.getElementById("intervalVehicle").value;
+  const selected = document.getElementById("intervalCategory").value;
+  const category = selected === "__other__"
+    ? document.getElementById("intervalCategoryOther").value.trim()
+    : selected;
+  const miles = document.getElementById("intervalMiles").value.trim();
+  const days = document.getElementById("intervalDays").value.trim();
+  const isRegSmog = category === "Registration/Smog";
+  const smogDays = isRegSmog ? document.getElementById("intervalSmogDays").value.trim() : "";
+  if (!vehicleId || !category) { showMsg(msgEl, "Pick a vehicle and a category.", "error"); return; }
+  if (!miles && !days) { showMsg(msgEl, "Enter a mile interval, a day interval, or both.", "error"); return; }
+
+  const { error } = await sb.from("maintenance_intervals").upsert({
+    org_id: ORG_ID,
+    vehicle_id: vehicleId,
+    category,
+    interval_miles: miles || null,
+    interval_days: days || null,
+    smog_interval_days: smogDays || null,
+  }, { onConflict: "vehicle_id,category" });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  showMsg(msgEl, "Interval saved.", "ok");
+  document.getElementById("intervalCategoryOther").value = "";
+  document.getElementById("intervalMiles").value = "";
+  document.getElementById("intervalDays").value = "";
+  document.getElementById("intervalSmogDays").value = "";
+  loadIntervals();
+});
+
+// ---------------------------------------------------------------------------
+// On page load, if there's already a valid session (e.g. page refresh),
+// skip straight past the login screen.
+// ---------------------------------------------------------------------------
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await afterLogin();
+})();
+</script>
+</body>
+</html>
