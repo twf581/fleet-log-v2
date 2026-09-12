@@ -152,7 +152,7 @@
     <!-- Vehicles -->
     <div id="tab-vehicles" class="tab-panel" hidden>
       <div class="card">
-        <h2 style="margin-top:0;">Add a Vehicle</h2>
+        <h2 style="margin-top:0;" id="vehicleFormTitle">Add a Vehicle</h2>
         <div id="vehicleMsg"></div>
         <label>Unit ID (e.g. "Truck 4", "Van 2", "Box Truck 1")</label>
         <input id="vehicleUnitId" />
@@ -160,9 +160,13 @@
         <select id="vehicleType">
           <option value="car">Car</option>
           <option value="van">Van</option>
+          <option value="pickup_truck">Pick-Up Truck</option>
           <option value="box_truck">Box Truck</option>
-          <option value="truck">Truck</option>
-          <option value="semi">Semi / 18-Wheeler</option>
+          <option value="dump_truck">Dump Truck</option>
+          <option value="flatbed">Flat Bed</option>
+          <option value="tractor">Tractor</option>
+          <option value="compressor_mixer">Compressor / Mixer</option>
+          <option value="water_truck">Water Truck</option>
           <option value="trailer">Trailer</option>
         </select>
         <div class="row">
@@ -170,14 +174,56 @@
           <div><label>Model</label><input id="vehicleModel" /></div>
           <div><label>Year</label><input id="vehicleYear" inputmode="numeric" /></div>
         </div>
+        <div class="row">
+          <div><label>VIN #</label><input id="vehicleVin" /></div>
+          <div><label>Plate #</label><input id="vehiclePlate" /></div>
+        </div>
+        <div class="row">
+          <div><label>Starting Mileage (reference point)</label><input id="vehicleStartingMileage" type="number" min="0" inputmode="numeric" placeholder="Odometer reading when adding this vehicle" /></div>
+          <div><label>As Of Date</label><input id="vehicleStartingMileageDate" type="date" /></div>
+        </div>
         <button id="addVehicleBtn">Add Vehicle</button>
+        <button id="cancelVehicleEditBtn" class="secondary" hidden type="button">Cancel</button>
       </div>
       <div class="card">
         <h2 style="margin-top:0;">All Vehicles</h2>
+        <div style="overflow-x:auto;">
         <table id="vehicleTable">
-          <thead><tr><th>Unit</th><th>Type</th><th>Make/Model</th><th>Year</th><th>Mileage</th></tr></thead>
+          <thead><tr><th>Unit</th><th>Type</th><th>Make/Model</th><th>Year</th><th>VIN</th><th>Plate</th><th>Mileage</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Equipment -->
+    <div id="tab-equipment" class="tab-panel" hidden>
+      <div class="card">
+        <h2 style="margin-top:0;">Add Equipment</h2>
+        <div id="equipmentMsg"></div>
+        <label>Equipment Type (e.g. "Trencher", "Walk-Behind Saw", "Generator", "Compactor")</label>
+        <input id="equipmentType" placeholder="Trencher" />
+        <label>Equipment #</label>
+        <input id="equipmentUnitId" placeholder="e.g. Trencher 1, EQ-12" />
+        <div class="row">
+          <div><label>Serial / VIN #</label><input id="equipmentVin" /></div>
+          <div><label>Make / Model</label><input id="equipmentMakeModel" placeholder="optional" /></div>
+        </div>
+        <div class="row">
+          <div><label>Hours / Mileage (reference point)</label><input id="equipmentStartingHours" type="number" min="0" inputmode="numeric" placeholder="Meter reading when adding this equipment" /></div>
+          <div><label>As Of Date</label><input id="equipmentStartingHoursDate" type="date" /></div>
+        </div>
+        <button id="addEquipmentBtn">Add Equipment</button>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">All Equipment</h2>
+        <p class="muted" style="margin-top:-6px;">Equipment shows up in the Maintenance tab's vehicle/equipment picker so you can log service on it the same way you do for trucks.</p>
+        <div style="overflow-x:auto;">
+        <table id="equipmentTable">
+          <thead><tr><th>Equipment #</th><th>Type</th><th>Make/Model</th><th>Serial/VIN</th><th>Hours/Mileage</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
       </div>
     </div>
 
@@ -754,6 +800,7 @@ async function afterLogin() {
   await loadOrgSettings();
   loadDashboard();
   loadVehicles();
+  loadEquipment();
   loadMileageTab();
   loadFuelTab();
   loadMaintTab();
@@ -776,6 +823,7 @@ const ALL_TABS = [
   { id: "dashboard", label: "Dashboard", adminOnly: false },
   { id: "mileage", label: "Mileage", adminOnly: false },
   { id: "vehicles", label: "Vehicles", adminOnly: false },
+  { id: "equipment", label: "Equipment", adminOnly: false },
   { id: "fuel", label: "Fuel", adminOnly: false },
   { id: "maintenance", label: "Maintenance", adminOnly: false },
   { id: "inspections", label: "Inspections", adminOnly: false },
@@ -801,7 +849,7 @@ function buildTabs() {
   });
 }
 
-const VEHICLE_TYPE_LABELS = { car: "Car", van: "Van", box_truck: "Box Truck", truck: "Truck", semi: "Semi / 18-Wheeler", trailer: "Trailer" };
+const VEHICLE_TYPE_LABELS = { car: "Car", van: "Van", pickup_truck: "Pick-Up Truck", box_truck: "Box Truck", dump_truck: "Dump Truck", flatbed: "Flat Bed", tractor: "Tractor", compressor_mixer: "Compressor / Mixer", water_truck: "Water Truck", trailer: "Trailer", equipment: "Equipment" };
 function vehicleTypeLabel(t) { return VEHICLE_TYPE_LABELS[t] || t; }
 
 function switchTab(tabId) {
@@ -814,7 +862,7 @@ function switchTab(tabId) {
 // DASHBOARD
 // ---------------------------------------------------------------------------
 async function loadDashboard() {
-  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const { data: vehicles } = await sb.from("vehicles").select("*").eq("asset_class", "vehicle").eq("active", true).order("unit_id");
   const tbody = document.querySelector("#dashboardVehicleTable tbody");
   tbody.innerHTML = "";
   (vehicles || []).forEach((v) => {
@@ -968,14 +1016,32 @@ async function loadAttention(vehicles) {
 // ---------------------------------------------------------------------------
 // VEHICLES
 // ---------------------------------------------------------------------------
+let editingVehicleId = null;
+
 async function loadVehicles() {
-  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const { data: vehicles } = await sb.from("vehicles").select("*").eq("asset_class", "vehicle").eq("active", true).order("unit_id");
   const tbody = document.querySelector("#vehicleTable tbody");
   tbody.innerHTML = "";
   (vehicles || []).forEach((v) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${v.unit_id}</td><td>${vehicleTypeLabel(v.vehicle_type)}</td><td>${v.make || ""} ${v.model || ""}</td><td>${v.year || ""}</td><td>${v.current_mileage ?? "—"}</td>`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-vehicle="${v.id}">Remove</button>` : "";
+    tr.innerHTML = `<td>${v.unit_id}</td><td>${vehicleTypeLabel(v.vehicle_type)}</td><td>${v.make || ""} ${v.model || ""}</td><td>${v.year || ""}</td><td>${v.vin || "—"}</td><td>${v.license_plate || "—"}</td><td>${v.current_mileage ?? "—"}</td><td><button class="secondary" data-edit-vehicle="${v.id}">Edit</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-edit-vehicle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const v = (vehicles || []).find((x) => x.id === btn.dataset.editVehicle);
+      if (v) startEditVehicle(v);
+    });
+  });
+  tbody.querySelectorAll("[data-del-vehicle]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Remove this vehicle from the active list? Its mileage, fuel, and maintenance history is kept, not deleted — this just hides it from the active fleet and its dropdowns.")) return;
+      await sb.from("vehicles").update({ active: false }).eq("id", btn.dataset.delVehicle);
+      if (editingVehicleId === btn.dataset.delVehicle) cancelEditVehicle();
+      loadVehicles();
+      loadDashboard();
+    });
   });
   // Also refresh the vehicle dropdown on the Service Intervals tab
   const sel = document.getElementById("intervalVehicle");
@@ -989,26 +1055,143 @@ async function loadVehicles() {
   }
 }
 
+function startEditVehicle(v) {
+  editingVehicleId = v.id;
+  document.getElementById("vehicleFormTitle").textContent = `Edit ${v.unit_id}`;
+  document.getElementById("vehicleUnitId").value = v.unit_id || "";
+  document.getElementById("vehicleType").value = v.vehicle_type || "car";
+  document.getElementById("vehicleMake").value = v.make || "";
+  document.getElementById("vehicleModel").value = v.model || "";
+  document.getElementById("vehicleYear").value = v.year || "";
+  document.getElementById("vehicleVin").value = v.vin || "";
+  document.getElementById("vehiclePlate").value = v.license_plate || "";
+  document.getElementById("vehicleStartingMileage").value = v.starting_mileage ?? "";
+  document.getElementById("vehicleStartingMileageDate").value = v.starting_mileage_date || "";
+  document.getElementById("addVehicleBtn").textContent = "Save Changes";
+  document.getElementById("cancelVehicleEditBtn").hidden = false;
+  document.getElementById("vehicleFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditVehicle() {
+  editingVehicleId = null;
+  document.getElementById("vehicleFormTitle").textContent = "Add a Vehicle";
+  document.getElementById("vehicleUnitId").value = "";
+  document.getElementById("vehicleType").value = "car";
+  document.getElementById("vehicleMake").value = "";
+  document.getElementById("vehicleModel").value = "";
+  document.getElementById("vehicleYear").value = "";
+  document.getElementById("vehicleVin").value = "";
+  document.getElementById("vehiclePlate").value = "";
+  document.getElementById("vehicleStartingMileage").value = "";
+  document.getElementById("vehicleStartingMileageDate").value = "";
+  document.getElementById("addVehicleBtn").textContent = "Add Vehicle";
+  document.getElementById("cancelVehicleEditBtn").hidden = true;
+  showMsg(document.getElementById("vehicleMsg"), "", "");
+}
+
+document.getElementById("cancelVehicleEditBtn").addEventListener("click", cancelEditVehicle);
+
 document.getElementById("addVehicleBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("vehicleMsg");
   const unitId = document.getElementById("vehicleUnitId").value.trim();
   if (!unitId) { showMsg(msgEl, "Enter a unit ID.", "error"); return; }
-  const { error } = await sb.from("vehicles").insert({
-    org_id: ORG_ID,
+  const startingMileage = document.getElementById("vehicleStartingMileage").value.trim();
+  const record = {
     unit_id: unitId,
     vehicle_type: document.getElementById("vehicleType").value,
     make: document.getElementById("vehicleMake").value.trim() || null,
     model: document.getElementById("vehicleModel").value.trim() || null,
     year: document.getElementById("vehicleYear").value.trim() || null,
-  });
-  if (error) { showMsg(msgEl, error.message, "error"); return; }
-  showMsg(msgEl, "Vehicle added.", "ok");
-  document.getElementById("vehicleUnitId").value = "";
-  document.getElementById("vehicleMake").value = "";
-  document.getElementById("vehicleModel").value = "";
-  document.getElementById("vehicleYear").value = "";
+    vin: document.getElementById("vehicleVin").value.trim() || null,
+    license_plate: document.getElementById("vehiclePlate").value.trim() || null,
+    starting_mileage: startingMileage ? Number(startingMileage) : null,
+    starting_mileage_date: document.getElementById("vehicleStartingMileageDate").value || null,
+  };
+
+  if (editingVehicleId) {
+    const { error } = await sb.from("vehicles").update(record).eq("id", editingVehicleId);
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Vehicle updated.", "ok");
+    cancelEditVehicle();
+  } else {
+    const { error } = await sb.from("vehicles").insert({
+      org_id: ORG_ID,
+      asset_class: "vehicle",
+      current_mileage: startingMileage ? Number(startingMileage) : null,
+      ...record,
+    });
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Vehicle added.", "ok");
+    document.getElementById("vehicleUnitId").value = "";
+    document.getElementById("vehicleMake").value = "";
+    document.getElementById("vehicleModel").value = "";
+    document.getElementById("vehicleYear").value = "";
+    document.getElementById("vehicleVin").value = "";
+    document.getElementById("vehiclePlate").value = "";
+    document.getElementById("vehicleStartingMileage").value = "";
+    document.getElementById("vehicleStartingMileageDate").value = "";
+  }
   loadVehicles();
   loadDashboard();
+});
+
+// ---------------------------------------------------------------------------
+// EQUIPMENT — lives in the same "vehicles" table (asset_class = 'equipment')
+// so it can be picked from the Maintenance tab's vehicle/equipment selector
+// without needing a separate maintenance-log setup. Kept out of the
+// Vehicles tab, Dashboard, and Service Intervals dropdown, all of which
+// filter to asset_class = 'vehicle' only.
+// ---------------------------------------------------------------------------
+async function loadEquipment() {
+  const { data: equipment } = await sb.from("vehicles").select("*").eq("asset_class", "equipment").eq("active", true).order("unit_id");
+  const tbody = document.querySelector("#equipmentTable tbody");
+  tbody.innerHTML = "";
+  (equipment || []).forEach((e) => {
+    const tr = document.createElement("tr");
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-equipment="${e.id}">Remove</button>` : "";
+    tr.innerHTML = `<td>${e.unit_id}</td><td>${e.equipment_type || "—"}</td><td>${e.make || "—"}</td><td>${e.vin || "—"}</td><td>${e.current_mileage ?? "—"}</td><td>${delBtn}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-del-equipment]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Remove this equipment from the active list? Its maintenance history is kept, not deleted — this just hides it from the active list and the Maintenance tab's picker.")) return;
+      await sb.from("vehicles").update({ active: false }).eq("id", btn.dataset.delEquipment);
+      loadEquipment();
+      populateMaintVehicleSelect();
+    });
+  });
+}
+
+document.getElementById("addEquipmentBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("equipmentMsg");
+  const unitId = document.getElementById("equipmentUnitId").value.trim();
+  const equipmentType = document.getElementById("equipmentType").value.trim();
+  if (!unitId) { showMsg(msgEl, "Enter an equipment #.", "error"); return; }
+  if (!equipmentType) { showMsg(msgEl, "Enter an equipment type (e.g. Trencher, Walk-Behind Saw).", "error"); return; }
+  const startingHours = document.getElementById("equipmentStartingHours").value.trim();
+  const makeModel = document.getElementById("equipmentMakeModel").value.trim();
+  const { error } = await sb.from("vehicles").insert({
+    org_id: ORG_ID,
+    asset_class: "equipment",
+    vehicle_type: "equipment",
+    equipment_type: equipmentType,
+    unit_id: unitId,
+    make: makeModel || null,
+    vin: document.getElementById("equipmentVin").value.trim() || null,
+    starting_mileage: startingHours ? Number(startingHours) : null,
+    starting_mileage_date: document.getElementById("equipmentStartingHoursDate").value || null,
+    current_mileage: startingHours ? Number(startingHours) : null,
+  });
+  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  showMsg(msgEl, "Equipment added.", "ok");
+  document.getElementById("equipmentUnitId").value = "";
+  document.getElementById("equipmentType").value = "";
+  document.getElementById("equipmentMakeModel").value = "";
+  document.getElementById("equipmentVin").value = "";
+  document.getElementById("equipmentStartingHours").value = "";
+  document.getElementById("equipmentStartingHoursDate").value = "";
+  loadEquipment();
+  populateMaintVehicleSelect();
 });
 
 // ---------------------------------------------------------------------------
@@ -1172,7 +1355,7 @@ function todayStr() {
 }
 
 async function populateMileageVehicleSelect() {
-  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const { data: vehicles } = await sb.from("vehicles").select("*").eq("asset_class", "vehicle").eq("active", true).order("unit_id");
   const sel = document.getElementById("mileageVehicle");
   const previousValue = mileageVehicleId;
   sel.innerHTML = "";
@@ -1360,7 +1543,8 @@ async function loadRecentMileageLogs() {
   (logs || []).forEach((l) => {
     const miles = l.end_mileage != null ? `${l.start_mileage} → ${l.end_mileage}` : `${l.start_mileage} → (not finished)`;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${l.log_date}</td><td>${l.vehicles?.unit_id || ""}</td><td>${miles}</td><td><button class="secondary" data-edit-log="${l.id}">Edit</button></td>`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-log="${l.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${l.log_date}</td><td>${l.vehicles?.unit_id || ""}</td><td>${miles}</td><td><button class="secondary" data-edit-log="${l.id}">Edit</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll("[data-edit-log]").forEach((btn) => {
@@ -1375,6 +1559,15 @@ async function loadRecentMileageLogs() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   });
+  tbody.querySelectorAll("[data-del-log]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this mileage log entry? This cannot be undone.")) return;
+      await sb.from("mileage_logs").delete().eq("id", btn.dataset.delLog);
+      loadRecentMileageLogs();
+      loadDashboard();
+      loadVehicles();
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1386,7 +1579,7 @@ async function loadRecentMileageLogs() {
 let fuelVehicleId = null;
 
 async function populateFuelVehicleSelect() {
-  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const { data: vehicles } = await sb.from("vehicles").select("*").eq("asset_class", "vehicle").eq("active", true).order("unit_id");
   const sel = document.getElementById("fuelVehicle");
   const previousValue = fuelVehicleId;
   sel.innerHTML = "";
@@ -1487,14 +1680,14 @@ async function loadFuelTable() {
 let maintVehicleId = null;
 
 async function populateMaintVehicleSelect() {
-  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const { data: vehicles } = await sb.from("vehicles").select("*").eq("active", true).order("unit_id");
   const sel = document.getElementById("maintVehicle");
   const previousValue = maintVehicleId;
   sel.innerHTML = "";
   (vehicles || []).forEach((v) => {
     const opt = document.createElement("option");
     opt.value = v.id;
-    opt.textContent = v.unit_id;
+    opt.textContent = v.asset_class === "equipment" ? `🔧 ${v.unit_id} (${v.equipment_type || "Equipment"})` : v.unit_id;
     sel.appendChild(opt);
   });
   if (previousValue && vehicles?.some((v) => v.id === previousValue)) {
@@ -1852,7 +2045,7 @@ let inspCertifyInspectionId = null;
 let inspReviewInspectionId = null;
 
 async function populateInspVehicleSelect() {
-  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const { data: vehicles } = await sb.from("vehicles").select("*").eq("asset_class", "vehicle").eq("active", true).order("unit_id");
   const sel = document.getElementById("inspVehicle");
   const previousValue = inspVehicleId;
   sel.innerHTML = "";
@@ -2294,7 +2487,7 @@ let suppliesLocationId = ""; // same idea, its own independent picker on the Sup
 // previous selection forward if it's still valid (e.g. after a vehicle
 // list refresh), same as every other vehicle picker in the app.
 async function populateLocationSelect(selectId, currentValue) {
-  const { data: vehicles } = await sb.from("vehicles").select("*").order("unit_id");
+  const { data: vehicles } = await sb.from("vehicles").select("*").eq("active", true).order("unit_id");
   const sel = document.getElementById(selectId);
   sel.innerHTML = "";
   const whOpt = document.createElement("option");
