@@ -209,7 +209,7 @@
     <!-- Equipment -->
     <div id="tab-equipment" class="tab-panel" hidden>
       <div class="card">
-        <h2 style="margin-top:0;">Add Equipment</h2>
+        <h2 style="margin-top:0;" id="equipmentFormTitle">Add Equipment</h2>
         <div id="equipmentMsg"></div>
         <label>Equipment Type (e.g. "Trencher", "Walk-Behind Saw", "Generator", "Compactor")</label>
         <input id="equipmentType" placeholder="Trencher" />
@@ -224,6 +224,7 @@
           <div><label>As Of Date</label><input id="equipmentStartingHoursDate" type="date" /></div>
         </div>
         <button id="addEquipmentBtn">Add Equipment</button>
+        <button id="cancelEquipmentEditBtn" class="secondary" hidden type="button">Cancel</button>
       </div>
       <div class="card">
         <h2 style="margin-top:0;">All Equipment</h2>
@@ -302,7 +303,7 @@
       <div class="card">
         <h2 style="margin-top:0;">Current Intervals</h2>
         <table id="intervalTable">
-          <thead><tr><th>Vehicle</th><th>Category</th><th>Rule</th><th>Next Due</th></tr></thead>
+          <thead><tr><th>Vehicle</th><th>Category</th><th>Rule</th><th>Next Due</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -363,7 +364,7 @@
       </div>
 
       <div class="card">
-        <h2 style="margin-top:0;">Log a Fill-Up</h2>
+        <h2 style="margin-top:0;" id="fuelFormTitle">Log a Fill-Up</h2>
         <div id="fuelMsg"></div>
         <label>Date</label>
         <input id="fuelDate" type="date" />
@@ -377,12 +378,13 @@
         <label>Notes</label>
         <input id="fuelNotes" />
         <button id="addFuelBtn" style="width:100%;">Save Fill-Up</button>
+        <button id="cancelFuelEditBtn" class="secondary" hidden type="button" style="width:100%;">Cancel</button>
       </div>
 
       <div class="card">
         <h2 style="margin-top:0;">Recent Fill-Ups</h2>
         <table id="fuelTable">
-          <thead><tr><th>Date</th><th>$</th><th>Gal</th><th>Odometer</th><th>Approx MPG</th></tr></thead>
+          <thead><tr><th>Date</th><th>$</th><th>Gal</th><th>Odometer</th><th>Approx MPG</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -395,7 +397,7 @@
       </div>
 
       <div class="card">
-        <h2 style="margin-top:0;">Log a Service</h2>
+        <h2 style="margin-top:0;" id="maintFormTitle">Log a Service</h2>
         <div id="maintLogMsg"></div>
         <label>Category (e.g. "Oil Change", "Transmission Service")</label>
         <select id="maintCategory"></select>
@@ -413,18 +415,19 @@
         <label>Notes</label>
         <input id="maintNotes" />
         <button id="addMaintLogBtn" style="width:100%;">Save Service Entry</button>
+        <button id="cancelMaintEditBtn" class="secondary" hidden type="button" style="width:100%;">Cancel</button>
       </div>
 
       <div class="card">
         <h2 style="margin-top:0;">Service History</h2>
         <table id="maintHistoryTable">
-          <thead><tr><th>Date</th><th>Category</th><th>Mileage</th><th>Cost</th></tr></thead>
+          <thead><tr><th>Date</th><th>Category</th><th>Mileage</th><th>Cost</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
 
       <div class="card">
-        <h2 style="margin-top:0;">Parts &amp; Specs</h2>
+        <h2 style="margin-top:0;" id="partFormTitle">Parts &amp; Specs</h2>
         <div id="partsMsg"></div>
         <label>Type</label>
         <select id="partType">
@@ -442,9 +445,10 @@
         <label>Notes</label>
         <input id="partNotes" />
         <button id="addPartBtn" class="secondary" style="width:100%;">Add Part</button>
+        <button id="cancelPartEditBtn" class="secondary" hidden type="button" style="width:100%;">Cancel</button>
 
         <table id="partsTable" style="margin-top:14px;">
-          <thead><tr><th>Type</th><th>Description</th><th>Part #</th><th>Spec</th></tr></thead>
+          <thead><tr><th>Type</th><th>Description</th><th>Part #</th><th>Spec</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -573,7 +577,7 @@
       </div>
 
       <div class="card">
-        <h2 style="margin-top:0;">Add a Tool</h2>
+        <h2 style="margin-top:0;" id="toolFormTitle">Add a Tool</h2>
         <div id="toolMsg"></div>
         <label>Name</label>
         <input id="toolName" placeholder="e.g. Cordless Drill" />
@@ -588,6 +592,7 @@
         <label>Notes</label>
         <input id="toolNotes" />
         <button id="addToolBtn" style="width:100%;">Add Tool</button>
+        <button id="cancelToolEditBtn" class="secondary" hidden type="button" style="width:100%;">Cancel</button>
       </div>
       <div class="card">
         <h2 style="margin-top:0;">Tools Here</h2>
@@ -606,7 +611,7 @@
       </div>
 
       <div class="card">
-        <h2 style="margin-top:0;">Add a Supply</h2>
+        <h2 style="margin-top:0;" id="supplyFormTitle">Add a Supply</h2>
         <div id="supplyMsg"></div>
         <label>Name</label>
         <input id="supplyName" placeholder="e.g. Zip Ties" />
@@ -615,6 +620,7 @@
         <label>Notes</label>
         <input id="supplyNotes" />
         <button id="addSupplyBtn" style="width:100%;">Add Supply</button>
+        <button id="cancelSupplyEditBtn" class="secondary" hidden type="button" style="width:100%;">Cancel</button>
       </div>
       <div class="card">
         <h2 style="margin-top:0;">Supplies Here</h2>
@@ -795,6 +801,11 @@ async function afterLogin() {
   const { data: empRow, error } = await sb.from("employees").select("*").eq("id", user.id).single();
   if (error || !empRow) {
     showMsg(document.getElementById("loginMsg"), "Logged in, but no employee record was found for this account.", "error");
+    await sb.auth.signOut();
+    return;
+  }
+  if (!empRow.active) {
+    showMsg(document.getElementById("loginMsg"), "This login has been deactivated. See an admin if this is a mistake.", "error");
     await sb.auth.signOut();
     return;
   }
@@ -1150,6 +1161,8 @@ document.getElementById("addVehicleBtn").addEventListener("click", async () => {
 // Vehicles tab, Dashboard, and Service Intervals dropdown, all of which
 // filter to asset_class = 'vehicle' only.
 // ---------------------------------------------------------------------------
+let editingEquipmentId = null;
+
 async function loadEquipment() {
   const { data: equipment } = await sb.from("vehicles").select("*").eq("asset_class", "equipment").eq("active", true).order("unit_id");
   const tbody = document.querySelector("#equipmentTable tbody");
@@ -1157,18 +1170,55 @@ async function loadEquipment() {
   (equipment || []).forEach((e) => {
     const tr = document.createElement("tr");
     const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-equipment="${e.id}">Remove</button>` : "";
-    tr.innerHTML = `<td>${e.unit_id}</td><td>${e.equipment_type || "—"}</td><td>${e.make || "—"}</td><td>${e.vin || "—"}</td><td>${e.current_mileage ?? "—"}</td><td>${delBtn}</td>`;
+    tr.innerHTML = `<td>${e.unit_id}</td><td>${e.equipment_type || "—"}</td><td>${e.make || "—"}</td><td>${e.vin || "—"}</td><td>${e.current_mileage ?? "—"}</td><td><button class="secondary" data-edit-equipment="${e.id}">Edit</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-edit-equipment]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const e = (equipment || []).find((x) => x.id === btn.dataset.editEquipment);
+      if (e) startEditEquipment(e);
+    });
   });
   tbody.querySelectorAll("[data-del-equipment]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (!confirm("Remove this equipment from the active list? Its maintenance history is kept, not deleted — this just hides it from the active list and the Maintenance tab's picker.")) return;
       await sb.from("vehicles").update({ active: false }).eq("id", btn.dataset.delEquipment);
+      if (editingEquipmentId === btn.dataset.delEquipment) cancelEditEquipment();
       loadEquipment();
       populateMaintVehicleSelect();
     });
   });
 }
+
+function startEditEquipment(e) {
+  editingEquipmentId = e.id;
+  document.getElementById("equipmentFormTitle").textContent = `Edit ${e.unit_id}`;
+  document.getElementById("equipmentType").value = e.equipment_type || "";
+  document.getElementById("equipmentUnitId").value = e.unit_id || "";
+  document.getElementById("equipmentVin").value = e.vin || "";
+  document.getElementById("equipmentMakeModel").value = e.make || "";
+  document.getElementById("equipmentStartingHours").value = e.starting_mileage ?? "";
+  document.getElementById("equipmentStartingHoursDate").value = e.starting_mileage_date || "";
+  document.getElementById("addEquipmentBtn").textContent = "Save Changes";
+  document.getElementById("cancelEquipmentEditBtn").hidden = false;
+  document.getElementById("equipmentFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditEquipment() {
+  editingEquipmentId = null;
+  document.getElementById("equipmentFormTitle").textContent = "Add Equipment";
+  document.getElementById("equipmentType").value = "";
+  document.getElementById("equipmentUnitId").value = "";
+  document.getElementById("equipmentVin").value = "";
+  document.getElementById("equipmentMakeModel").value = "";
+  document.getElementById("equipmentStartingHours").value = "";
+  document.getElementById("equipmentStartingHoursDate").value = "";
+  document.getElementById("addEquipmentBtn").textContent = "Add Equipment";
+  document.getElementById("cancelEquipmentEditBtn").hidden = true;
+  showMsg(document.getElementById("equipmentMsg"), "", "");
+}
+
+document.getElementById("cancelEquipmentEditBtn").addEventListener("click", cancelEditEquipment);
 
 document.getElementById("addEquipmentBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("equipmentMsg");
@@ -1178,26 +1228,37 @@ document.getElementById("addEquipmentBtn").addEventListener("click", async () =>
   if (!equipmentType) { showMsg(msgEl, "Enter an equipment type (e.g. Trencher, Walk-Behind Saw).", "error"); return; }
   const startingHours = document.getElementById("equipmentStartingHours").value.trim();
   const makeModel = document.getElementById("equipmentMakeModel").value.trim();
-  const { error } = await sb.from("vehicles").insert({
-    org_id: ORG_ID,
-    asset_class: "equipment",
-    vehicle_type: "equipment",
-    equipment_type: equipmentType,
+  const record = {
     unit_id: unitId,
+    equipment_type: equipmentType,
     make: makeModel || null,
     vin: document.getElementById("equipmentVin").value.trim() || null,
     starting_mileage: startingHours ? Number(startingHours) : null,
     starting_mileage_date: document.getElementById("equipmentStartingHoursDate").value || null,
-    current_mileage: startingHours ? Number(startingHours) : null,
-  });
-  if (error) { showMsg(msgEl, error.message, "error"); return; }
-  showMsg(msgEl, "Equipment added.", "ok");
-  document.getElementById("equipmentUnitId").value = "";
-  document.getElementById("equipmentType").value = "";
-  document.getElementById("equipmentMakeModel").value = "";
-  document.getElementById("equipmentVin").value = "";
-  document.getElementById("equipmentStartingHours").value = "";
-  document.getElementById("equipmentStartingHoursDate").value = "";
+  };
+
+  if (editingEquipmentId) {
+    const { error } = await sb.from("vehicles").update(record).eq("id", editingEquipmentId);
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Equipment updated.", "ok");
+    cancelEditEquipment();
+  } else {
+    const { error } = await sb.from("vehicles").insert({
+      org_id: ORG_ID,
+      asset_class: "equipment",
+      vehicle_type: "equipment",
+      current_mileage: startingHours ? Number(startingHours) : null,
+      ...record,
+    });
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Equipment added.", "ok");
+    document.getElementById("equipmentUnitId").value = "";
+    document.getElementById("equipmentType").value = "";
+    document.getElementById("equipmentMakeModel").value = "";
+    document.getElementById("equipmentVin").value = "";
+    document.getElementById("equipmentStartingHours").value = "";
+    document.getElementById("equipmentStartingHoursDate").value = "";
+  }
   loadEquipment();
   populateMaintVehicleSelect();
 });
@@ -1296,10 +1357,18 @@ async function loadEmployees() {
     const tr = document.createElement("tr");
     const resetBtn = `<button class="secondary" data-reset="${e.id}" data-empnum="${e.employee_number}">Reset PIN</button>`;
     const cdlOptions = `<option value="true"${(e.requires_cdl ?? true) ? " selected" : ""}>Yes</option><option value="false"${!(e.requires_cdl ?? true) ? " selected" : ""}>No</option>`;
-    tr.innerHTML = `<td>${e.employee_number}</td><td>${e.name}</td><td>${e.role}</td><td>${e.active ? "Yes" : "No"}</td>` +
+    const activeOptions = `<option value="true"${e.active ? " selected" : ""}>Yes</option><option value="false"${!e.active ? " selected" : ""}>No</option>`;
+    tr.innerHTML = `<td>${e.employee_number}</td><td>${e.name}</td><td>${e.role}</td><td><select data-active="${e.id}">${activeOptions}</select></td>` +
       `<td><input type="date" data-cycle-anchor="${e.id}" value="${e.hos_cycle_anchor_date || ""}" /></td>` +
       `<td><select data-requires-cdl="${e.id}">${cdlOptions}</select></td><td>${resetBtn}</td>`;
     tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-active]").forEach((sel) => {
+    sel.addEventListener("change", async () => {
+      const active = sel.value === "true";
+      const { error } = await sb.from("employees").update({ active }).eq("id", sel.dataset.active);
+      showMsg(document.getElementById("employeeMsg"), error ? error.message : (active ? "Employee reactivated." : "Employee deactivated — they can no longer log in, but their history is kept."), error ? "error" : "ok");
+    });
   });
   tbody.querySelectorAll("[data-reset]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -1664,6 +1733,7 @@ function showFuelLastKnownMileage() {
 
 document.getElementById("fuelVehicle").addEventListener("change", async (e) => {
   fuelVehicleId = e.target.value;
+  if (editingFuelId) cancelEditFuel();
   showFuelLastKnownMileage();
   await loadFuelTable();
 });
@@ -1673,6 +1743,36 @@ async function loadFuelTab() {
   await populateFuelVehicleSelect();
   await loadFuelTable();
 }
+
+let editingFuelId = null;
+
+function startEditFuel(f) {
+  editingFuelId = f.id;
+  document.getElementById("fuelFormTitle").textContent = "Edit Fill-Up";
+  document.getElementById("fuelDate").value = f.log_date || "";
+  document.getElementById("fuelAmount").value = f.amount ?? "";
+  document.getElementById("fuelGallons").value = f.gallons ?? "";
+  document.getElementById("fuelOdometer").value = f.odometer ?? "";
+  document.getElementById("fuelNotes").value = f.notes || "";
+  document.getElementById("addFuelBtn").textContent = "Save Changes";
+  document.getElementById("cancelFuelEditBtn").hidden = false;
+  document.getElementById("fuelFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditFuel() {
+  editingFuelId = null;
+  document.getElementById("fuelFormTitle").textContent = "Log a Fill-Up";
+  document.getElementById("fuelAmount").value = "";
+  document.getElementById("fuelGallons").value = "";
+  document.getElementById("fuelOdometer").value = "";
+  document.getElementById("fuelNotes").value = "";
+  document.getElementById("fuelDate").value = todayStr();
+  document.getElementById("addFuelBtn").textContent = "Save Fill-Up";
+  document.getElementById("cancelFuelEditBtn").hidden = true;
+  showMsg(document.getElementById("fuelMsg"), "", "");
+}
+
+document.getElementById("cancelFuelEditBtn").addEventListener("click", cancelEditFuel);
 
 document.getElementById("addFuelBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("fuelMsg");
@@ -1685,24 +1785,34 @@ document.getElementById("addFuelBtn").addEventListener("click", async () => {
     return;
   }
 
-  const { error } = await sb.from("fuel_logs").insert({
-    org_id: ORG_ID,
-    employee_id: currentEmployee.id,
-    vehicle_id: fuelVehicleId,
+  const record = {
     log_date: logDate,
     amount,
     gallons,
     odometer,
     notes: document.getElementById("fuelNotes").value.trim() || null,
-  });
-  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  };
 
-  showMsg(msgEl, "Fill-up saved.", "ok");
-  document.getElementById("fuelAmount").value = "";
-  document.getElementById("fuelGallons").value = "";
-  document.getElementById("fuelOdometer").value = "";
-  document.getElementById("fuelNotes").value = "";
-  document.getElementById("fuelDate").value = todayStr();
+  if (editingFuelId) {
+    const { error } = await sb.from("fuel_logs").update(record).eq("id", editingFuelId);
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Fill-up updated.", "ok");
+    cancelEditFuel();
+  } else {
+    const { error } = await sb.from("fuel_logs").insert({
+      org_id: ORG_ID,
+      employee_id: currentEmployee.id,
+      vehicle_id: fuelVehicleId,
+      ...record,
+    });
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Fill-up saved.", "ok");
+    document.getElementById("fuelAmount").value = "";
+    document.getElementById("fuelGallons").value = "";
+    document.getElementById("fuelOdometer").value = "";
+    document.getElementById("fuelNotes").value = "";
+    document.getElementById("fuelDate").value = todayStr();
+  }
   loadFuelTable();
   loadDashboard();
   loadVehicles();
@@ -1721,8 +1831,24 @@ async function loadFuelTable() {
   tbody.innerHTML = "";
   (fills || []).forEach((f) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${f.log_date}</td><td>${f.amount}</td><td>${f.gallons}</td><td>${f.odometer ?? ""}</td><td>${f.approx_mpg ?? "—"}</td>`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-fuel="${f.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${f.log_date}</td><td>${f.amount}</td><td>${f.gallons}</td><td>${f.odometer ?? ""}</td><td>${f.approx_mpg ?? "—"}</td><td><button class="secondary" data-edit-fuel="${f.id}">Edit</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-edit-fuel]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const f = (fills || []).find((x) => x.id === btn.dataset.editFuel);
+      if (f) startEditFuel(f);
+    });
+  });
+  tbody.querySelectorAll("[data-del-fuel]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this fill-up? This cannot be undone.")) return;
+      await sb.from("fuel_logs").delete().eq("id", btn.dataset.delFuel);
+      if (editingFuelId === btn.dataset.delFuel) cancelEditFuel();
+      loadFuelTable();
+      loadDashboard();
+    });
   });
 }
 
@@ -1754,6 +1880,8 @@ async function populateMaintVehicleSelect() {
 
 document.getElementById("maintVehicle").addEventListener("change", async (e) => {
   maintVehicleId = e.target.value;
+  if (editingMaintId) cancelEditMaint();
+  if (editingPartId) cancelEditPart();
   await loadMaintHistory();
   await loadParts();
 });
@@ -1836,6 +1964,48 @@ function toggleMaintCategoryOther() {
 
 document.getElementById("maintCategory").addEventListener("change", toggleMaintCategoryOther);
 
+let editingMaintId = null;
+
+function startEditMaint(l) {
+  editingMaintId = l.id;
+  document.getElementById("maintFormTitle").textContent = `Edit Service Entry`;
+  document.getElementById("maintCategory").value = l.category;
+  // If this log's category isn't one of the current dropdown options (an
+  // old one-off "Other" entry), fall back to "Other" and put it in the text box.
+  if (document.getElementById("maintCategory").value !== l.category) {
+    document.getElementById("maintCategory").value = "__other__";
+    document.getElementById("maintCategoryOther").value = l.category;
+  } else {
+    document.getElementById("maintCategoryOther").value = "";
+  }
+  toggleMaintCategoryOther();
+  document.getElementById("maintDate").value = l.log_date || "";
+  document.getElementById("maintSmogDate").value = l.smog_date || "";
+  document.getElementById("maintMileage").value = l.mileage ?? "";
+  document.getElementById("maintCost").value = l.cost ?? "";
+  document.getElementById("maintNotes").value = l.notes || "";
+  document.getElementById("addMaintLogBtn").textContent = "Save Changes";
+  document.getElementById("cancelMaintEditBtn").hidden = false;
+  document.getElementById("maintFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditMaint() {
+  editingMaintId = null;
+  document.getElementById("maintFormTitle").textContent = "Log a Service";
+  document.getElementById("maintCategoryOther").value = "";
+  document.getElementById("maintMileage").value = "";
+  document.getElementById("maintCost").value = "";
+  document.getElementById("maintNotes").value = "";
+  document.getElementById("maintDate").value = todayStr();
+  document.getElementById("maintSmogDate").value = "";
+  document.getElementById("addMaintLogBtn").textContent = "Save Service Entry";
+  document.getElementById("cancelMaintEditBtn").hidden = true;
+  toggleMaintCategoryOther();
+  showMsg(document.getElementById("maintLogMsg"), "", "");
+}
+
+document.getElementById("cancelMaintEditBtn").addEventListener("click", cancelEditMaint);
+
 document.getElementById("addMaintLogBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("maintLogMsg");
   const selected = document.getElementById("maintCategory").value;
@@ -1849,26 +2019,36 @@ document.getElementById("addMaintLogBtn").addEventListener("click", async () => 
   const dateLabel = isRegSmog ? "Registration date" : "Date";
   if (!category || !logDate) { showMsg(msgEl, `Category and ${dateLabel.toLowerCase()} are required.`, "error"); return; }
 
-  const { error } = await sb.from("maintenance_logs").insert({
-    org_id: ORG_ID,
-    employee_id: currentEmployee.id,
-    vehicle_id: maintVehicleId,
+  const record = {
     log_date: logDate,
     smog_date: smogDate,
     category,
     mileage: mileage || null,
     cost: document.getElementById("maintCost").value.trim() || null,
     notes: document.getElementById("maintNotes").value.trim() || null,
-  });
-  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  };
 
-  showMsg(msgEl, "Service entry saved.", "ok");
-  document.getElementById("maintCategoryOther").value = "";
-  document.getElementById("maintMileage").value = "";
-  document.getElementById("maintCost").value = "";
-  document.getElementById("maintNotes").value = "";
-  document.getElementById("maintDate").value = todayStr();
-  document.getElementById("maintSmogDate").value = "";
+  if (editingMaintId) {
+    const { error } = await sb.from("maintenance_logs").update(record).eq("id", editingMaintId);
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Service entry updated.", "ok");
+    cancelEditMaint();
+  } else {
+    const { error } = await sb.from("maintenance_logs").insert({
+      org_id: ORG_ID,
+      employee_id: currentEmployee.id,
+      vehicle_id: maintVehicleId,
+      ...record,
+    });
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Service entry saved.", "ok");
+    document.getElementById("maintCategoryOther").value = "";
+    document.getElementById("maintMileage").value = "";
+    document.getElementById("maintCost").value = "";
+    document.getElementById("maintNotes").value = "";
+    document.getElementById("maintDate").value = todayStr();
+    document.getElementById("maintSmogDate").value = "";
+  }
   loadMaintHistory();
   populateMaintCategoryList();
   if (currentEmployee.role === "admin") loadIntervals();
@@ -1887,32 +2067,89 @@ async function loadMaintHistory() {
   (logs || []).forEach((l) => {
     const tr = document.createElement("tr");
     const dateCell = l.smog_date ? `${l.log_date}<br><span class="muted">Smog: ${l.smog_date}</span>` : l.log_date;
-    tr.innerHTML = `<td>${dateCell}</td><td>${l.category}</td><td>${l.mileage ?? "—"}</td><td>${l.cost ? "$" + l.cost : "—"}</td>`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-maint="${l.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${dateCell}</td><td>${l.category}</td><td>${l.mileage ?? "—"}</td><td>${l.cost ? "$" + l.cost : "—"}</td><td><button class="secondary" data-edit-maint="${l.id}">Edit</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
   });
+  tbody.querySelectorAll("[data-edit-maint]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const l = (logs || []).find((x) => x.id === btn.dataset.editMaint);
+      if (l) startEditMaint(l);
+    });
+  });
+  tbody.querySelectorAll("[data-del-maint]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this service entry? This cannot be undone.")) return;
+      await sb.from("maintenance_logs").delete().eq("id", btn.dataset.delMaint);
+      if (editingMaintId === btn.dataset.delMaint) cancelEditMaint();
+      loadMaintHistory();
+      populateMaintCategoryList();
+      if (currentEmployee.role === "admin") loadIntervals();
+    });
+  });
 }
+
+let editingPartId = null;
+
+function startEditPart(p) {
+  editingPartId = p.id;
+  document.getElementById("partFormTitle").textContent = "Edit Part";
+  document.getElementById("partType").value = p.part_type || "other";
+  document.getElementById("partDescription").value = p.description || "";
+  document.getElementById("partNumber").value = p.part_number || "";
+  document.getElementById("partSpec").value = p.spec || "";
+  document.getElementById("partNotes").value = p.notes || "";
+  document.getElementById("addPartBtn").textContent = "Save Changes";
+  document.getElementById("cancelPartEditBtn").hidden = false;
+  document.getElementById("partFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditPart() {
+  editingPartId = null;
+  document.getElementById("partFormTitle").textContent = "Parts & Specs";
+  document.getElementById("partType").value = "tire";
+  document.getElementById("partDescription").value = "";
+  document.getElementById("partNumber").value = "";
+  document.getElementById("partSpec").value = "";
+  document.getElementById("partNotes").value = "";
+  document.getElementById("addPartBtn").textContent = "Add Part";
+  document.getElementById("cancelPartEditBtn").hidden = true;
+  showMsg(document.getElementById("partsMsg"), "", "");
+}
+
+document.getElementById("cancelPartEditBtn").addEventListener("click", cancelEditPart);
 
 document.getElementById("addPartBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("partsMsg");
   const description = document.getElementById("partDescription").value.trim();
   if (!description) { showMsg(msgEl, "Enter a description for the part.", "error"); return; }
 
-  const { error } = await sb.from("vehicle_parts").insert({
-    org_id: ORG_ID,
-    vehicle_id: maintVehicleId,
+  const record = {
     part_type: document.getElementById("partType").value,
     description,
     part_number: document.getElementById("partNumber").value.trim() || null,
     spec: document.getElementById("partSpec").value.trim() || null,
     notes: document.getElementById("partNotes").value.trim() || null,
-  });
-  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  };
 
-  showMsg(msgEl, "Part added.", "ok");
-  document.getElementById("partDescription").value = "";
-  document.getElementById("partNumber").value = "";
-  document.getElementById("partSpec").value = "";
-  document.getElementById("partNotes").value = "";
+  if (editingPartId) {
+    const { error } = await sb.from("vehicle_parts").update(record).eq("id", editingPartId);
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Part updated.", "ok");
+    cancelEditPart();
+  } else {
+    const { error } = await sb.from("vehicle_parts").insert({
+      org_id: ORG_ID,
+      vehicle_id: maintVehicleId,
+      ...record,
+    });
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Part added.", "ok");
+    document.getElementById("partDescription").value = "";
+    document.getElementById("partNumber").value = "";
+    document.getElementById("partSpec").value = "";
+    document.getElementById("partNotes").value = "";
+  }
   loadParts();
 });
 
@@ -1927,8 +2164,23 @@ async function loadParts() {
   tbody.innerHTML = "";
   (parts || []).forEach((p) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${p.part_type}</td><td>${p.description}</td><td>${p.part_number || "—"}</td><td>${p.spec || "—"}</td>`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-part="${p.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${p.part_type}</td><td>${p.description}</td><td>${p.part_number || "—"}</td><td>${p.spec || "—"}</td><td><button class="secondary" data-edit-part="${p.id}">Edit</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-edit-part]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = (parts || []).find((x) => x.id === btn.dataset.editPart);
+      if (p) startEditPart(p);
+    });
+  });
+  tbody.querySelectorAll("[data-del-part]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this part? This cannot be undone.")) return;
+      await sb.from("vehicle_parts").delete().eq("id", btn.dataset.delPart);
+      if (editingPartId === btn.dataset.delPart) cancelEditPart();
+      loadParts();
+    });
   });
 }
 
@@ -2399,11 +2651,20 @@ async function loadInspectionHistory() {
       ? `<span style="color:var(--danger);font-weight:600;">Defect reported</span>`
       : `<span style="color:var(--ok);">OK</span>`;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${formatDateTime(l.signed_at) || l.log_date}</td><td>${result}</td><td>${l.employees?.name || ""}</td><td><button class="secondary" data-view-inspection="${l.id}">View</button></td>`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-inspection="${l.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${formatDateTime(l.signed_at) || l.log_date}</td><td>${result}</td><td>${l.employees?.name || ""}</td><td><button class="secondary" data-view-inspection="${l.id}">View</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll("[data-view-inspection]").forEach((btn) => {
     btn.addEventListener("click", () => viewInspectionReport(btn.dataset.viewInspection));
+  });
+  tbody.querySelectorAll("[data-del-inspection]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this inspection report? This cannot be undone, and it's a signed safety record — only delete a mistaken or duplicate entry, never one that reflects a real inspection.")) return;
+      await sb.from("inspections").delete().eq("id", btn.dataset.delInspection);
+      loadInspectionHistory();
+      loadInspectionsTab();
+    });
   });
 }
 
@@ -2560,6 +2821,7 @@ async function populateLocationSelect(selectId, currentValue) {
 
 document.getElementById("toolsLocation").addEventListener("change", async (e) => {
   toolsLocationId = e.target.value;
+  if (editingToolId) cancelEditTool();
   await loadTools();
 });
 
@@ -2572,6 +2834,8 @@ function toolsQuery(query) {
   return toolsLocationId ? query.eq("vehicle_id", toolsLocationId) : query.is("vehicle_id", null);
 }
 
+let editingToolId = null;
+
 async function loadTools() {
   const { data: tools } = await toolsQuery(sb.from("tools").select("*")).order("name");
   const tbody = document.querySelector("#toolsTable tbody");
@@ -2583,8 +2847,9 @@ async function loadTools() {
       <option value="needs_repair"${t.status === "needs_repair" ? " selected" : ""}>Needs Repair</option>
       <option value="missing"${t.status === "missing" ? " selected" : ""}>Missing / Lost</option>
     </select>`;
+    const editBtn = currentEmployee.role === "admin" ? `<button class="secondary" data-edit-tool="${t.id}">Edit</button>` : "";
     const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-tool="${t.id}">Delete</button>` : "";
-    tr.innerHTML = `<td>${t.name}</td><td>${t.serial_number || "—"}</td><td>${statusSel}</td><td>${t.notes || "—"}</td><td>${delBtn}</td>`;
+    tr.innerHTML = `<td>${t.name}</td><td>${t.serial_number || "—"}</td><td>${statusSel}</td><td>${t.notes || "—"}</td><td>${editBtn} ${delBtn}</td>`;
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll("[data-tool-status]").forEach((sel) => {
@@ -2593,35 +2858,78 @@ async function loadTools() {
       loadDashboard();
     });
   });
+  tbody.querySelectorAll("[data-edit-tool]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const t = (tools || []).find((x) => x.id === btn.dataset.editTool);
+      if (t) startEditTool(t);
+    });
+  });
   tbody.querySelectorAll("[data-del-tool]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (!confirm("Delete this tool?")) return;
       await sb.from("tools").delete().eq("id", btn.dataset.delTool);
+      if (editingToolId === btn.dataset.delTool) cancelEditTool();
       loadTools();
     });
   });
 }
+
+function startEditTool(t) {
+  editingToolId = t.id;
+  document.getElementById("toolFormTitle").textContent = `Edit ${t.name}`;
+  document.getElementById("toolName").value = t.name || "";
+  document.getElementById("toolSerial").value = t.serial_number || "";
+  document.getElementById("toolStatus").value = t.status || "ok";
+  document.getElementById("toolNotes").value = t.notes || "";
+  document.getElementById("addToolBtn").textContent = "Save Changes";
+  document.getElementById("cancelToolEditBtn").hidden = false;
+  document.getElementById("toolFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditTool() {
+  editingToolId = null;
+  document.getElementById("toolFormTitle").textContent = "Add a Tool";
+  document.getElementById("toolName").value = "";
+  document.getElementById("toolSerial").value = "";
+  document.getElementById("toolStatus").value = "ok";
+  document.getElementById("toolNotes").value = "";
+  document.getElementById("addToolBtn").textContent = "Add Tool";
+  document.getElementById("cancelToolEditBtn").hidden = true;
+  showMsg(document.getElementById("toolMsg"), "", "");
+}
+
+document.getElementById("cancelToolEditBtn").addEventListener("click", cancelEditTool);
 
 document.getElementById("addToolBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("toolMsg");
   const name = document.getElementById("toolName").value.trim();
   if (!name) { showMsg(msgEl, "Enter a tool name.", "error"); return; }
 
-  const { error } = await sb.from("tools").insert({
-    org_id: ORG_ID,
-    vehicle_id: toolsLocationId || null,
+  const record = {
     name,
     serial_number: document.getElementById("toolSerial").value.trim() || null,
     status: document.getElementById("toolStatus").value,
     notes: document.getElementById("toolNotes").value.trim() || null,
-  });
-  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  };
 
-  showMsg(msgEl, "Tool added.", "ok");
-  document.getElementById("toolName").value = "";
-  document.getElementById("toolSerial").value = "";
-  document.getElementById("toolStatus").value = "ok";
-  document.getElementById("toolNotes").value = "";
+  if (editingToolId) {
+    const { error } = await sb.from("tools").update(record).eq("id", editingToolId);
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Tool updated.", "ok");
+    cancelEditTool();
+  } else {
+    const { error } = await sb.from("tools").insert({
+      org_id: ORG_ID,
+      vehicle_id: toolsLocationId || null,
+      ...record,
+    });
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Tool added.", "ok");
+    document.getElementById("toolName").value = "";
+    document.getElementById("toolSerial").value = "";
+    document.getElementById("toolStatus").value = "ok";
+    document.getElementById("toolNotes").value = "";
+  }
   loadTools();
   loadDashboard();
 });
@@ -2635,6 +2943,7 @@ document.getElementById("addToolBtn").addEventListener("click", async () => {
 // ---------------------------------------------------------------------------
 document.getElementById("suppliesLocation").addEventListener("change", async (e) => {
   suppliesLocationId = e.target.value;
+  if (editingSupplyId) cancelEditSupply();
   await loadSupplies();
 });
 
@@ -2648,6 +2957,8 @@ function suppliesQuery(query) {
   return suppliesLocationId ? query.eq("vehicle_id", suppliesLocationId) : query.is("vehicle_id", null);
 }
 
+let editingSupplyId = null;
+
 async function loadSupplies() {
   const { data: supplies } = await suppliesQuery(sb.from("supplies").select("*")).order("name");
   const tbody = document.querySelector("#suppliesTable tbody");
@@ -2655,8 +2966,9 @@ async function loadSupplies() {
   (supplies || []).forEach((s) => {
     const tr = document.createElement("tr");
     const qtyInput = `<input type="number" inputmode="numeric" style="margin:0;padding:6px;" data-supply-qty="${s.id}" value="${s.quantity ?? ""}" />`;
+    const editBtn = currentEmployee.role === "admin" ? `<button class="secondary" data-edit-supply="${s.id}">Edit</button>` : "";
     const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-supply="${s.id}">Delete</button>` : "";
-    tr.innerHTML = `<td>${s.name}</td><td>${qtyInput}</td><td>${s.notes || "—"}</td><td>${delBtn}</td>`;
+    tr.innerHTML = `<td>${s.name}</td><td>${qtyInput}</td><td>${s.notes || "—"}</td><td>${editBtn} ${delBtn}</td>`;
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll("[data-supply-qty]").forEach((input) => {
@@ -2666,33 +2978,74 @@ async function loadSupplies() {
       loadDashboard();
     });
   });
+  tbody.querySelectorAll("[data-edit-supply]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = (supplies || []).find((x) => x.id === btn.dataset.editSupply);
+      if (s) startEditSupply(s);
+    });
+  });
   tbody.querySelectorAll("[data-del-supply]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (!confirm("Delete this supply?")) return;
       await sb.from("supplies").delete().eq("id", btn.dataset.delSupply);
+      if (editingSupplyId === btn.dataset.delSupply) cancelEditSupply();
       loadSupplies();
     });
   });
 }
+
+function startEditSupply(s) {
+  editingSupplyId = s.id;
+  document.getElementById("supplyFormTitle").textContent = `Edit ${s.name}`;
+  document.getElementById("supplyName").value = s.name || "";
+  document.getElementById("supplyQuantity").value = s.quantity ?? "";
+  document.getElementById("supplyNotes").value = s.notes || "";
+  document.getElementById("addSupplyBtn").textContent = "Save Changes";
+  document.getElementById("cancelSupplyEditBtn").hidden = false;
+  document.getElementById("supplyFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditSupply() {
+  editingSupplyId = null;
+  document.getElementById("supplyFormTitle").textContent = "Add a Supply";
+  document.getElementById("supplyName").value = "";
+  document.getElementById("supplyQuantity").value = "";
+  document.getElementById("supplyNotes").value = "";
+  document.getElementById("addSupplyBtn").textContent = "Add Supply";
+  document.getElementById("cancelSupplyEditBtn").hidden = true;
+  showMsg(document.getElementById("supplyMsg"), "", "");
+}
+
+document.getElementById("cancelSupplyEditBtn").addEventListener("click", cancelEditSupply);
 
 document.getElementById("addSupplyBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("supplyMsg");
   const name = document.getElementById("supplyName").value.trim();
   if (!name) { showMsg(msgEl, "Enter a supply name.", "error"); return; }
 
-  const { error } = await sb.from("supplies").insert({
-    org_id: ORG_ID,
-    vehicle_id: suppliesLocationId || null,
+  const record = {
     name,
     quantity: document.getElementById("supplyQuantity").value.trim() || null,
     notes: document.getElementById("supplyNotes").value.trim() || null,
-  });
-  if (error) { showMsg(msgEl, error.message, "error"); return; }
+  };
 
-  showMsg(msgEl, "Supply added.", "ok");
-  document.getElementById("supplyName").value = "";
-  document.getElementById("supplyQuantity").value = "";
-  document.getElementById("supplyNotes").value = "";
+  if (editingSupplyId) {
+    const { error } = await sb.from("supplies").update(record).eq("id", editingSupplyId);
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Supply updated.", "ok");
+    cancelEditSupply();
+  } else {
+    const { error } = await sb.from("supplies").insert({
+      org_id: ORG_ID,
+      vehicle_id: suppliesLocationId || null,
+      ...record,
+    });
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Supply added.", "ok");
+    document.getElementById("supplyName").value = "";
+    document.getElementById("supplyQuantity").value = "";
+    document.getElementById("supplyNotes").value = "";
+  }
   loadSupplies();
 });
 
@@ -2982,8 +3335,9 @@ async function loadHosWeek() {
     const radius = row ? (row.within_radius ? "Yes" : "No") : "—";
     const status = row ? (STATUS_LABELS[dailyStatus[dateStr]] || "—") : "—";
     const signed = signedUrlByDate[dateStr] ? `<button type="button" class="secondary" data-view-hos-sig="${dateStr}">View</button>` : "—";
+    const delBtn = (row && currentEmployee.role === "admin") ? `<button class="danger" data-del-hos="${row.id}">Delete</button>` : "";
     tr.innerHTML = `<td>${dateStr}</td><td>${onDuty}</td><td>${hours}</td><td>${radius}</td><td>${status}</td><td>${signed}</td>` +
-      `<td><button class="secondary" data-edit-hos="${dateStr}">Edit</button></td>`;
+      `<td><button class="secondary" data-edit-hos="${dateStr}">Edit</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll("[data-edit-hos]").forEach((btn) => {
@@ -2992,6 +3346,13 @@ async function loadHosWeek() {
       document.getElementById("hosDate").dispatchEvent(new Event("change"));
       switchTab("hos");
       window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+  tbody.querySelectorAll("[data-del-hos]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this day's Hours of Service entry? This cannot be undone.")) return;
+      await sb.from("hos_logs").delete().eq("id", btn.dataset.delHos);
+      loadHosWeek();
     });
   });
   tbody.querySelectorAll("[data-view-hos-sig]").forEach((btn) => {
@@ -3069,9 +3430,40 @@ async function loadIntervals() {
       isRegSmog && i.smog_next_due_date ? `${i.smog_next_due_date} (smog)` : null,
     ].filter(Boolean).join(" / ") || "—";
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${i.vehicles?.unit_id || ""}</td><td>${i.category}</td><td>${rule}</td><td>${nextDue}</td>`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-interval="${i.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${i.vehicles?.unit_id || ""}</td><td>${i.category}</td><td>${rule}</td><td>${nextDue}</td><td><button class="secondary" data-edit-interval="${i.id}">Edit</button> ${delBtn}</td>`;
     tbody.appendChild(tr);
   });
+  tbody.querySelectorAll("[data-edit-interval]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const i = (intervals || []).find((x) => x.id === btn.dataset.editInterval);
+      if (i) startEditInterval(i);
+    });
+  });
+  tbody.querySelectorAll("[data-del-interval]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this maintenance interval?")) return;
+      await sb.from("maintenance_intervals").delete().eq("id", btn.dataset.delInterval);
+      loadIntervals();
+    });
+  });
+}
+
+function startEditInterval(i) {
+  document.getElementById("intervalVehicle").value = i.vehicle_id;
+  const catSel = document.getElementById("intervalCategory");
+  catSel.value = i.category;
+  if (catSel.value !== i.category) {
+    catSel.value = "__other__";
+    document.getElementById("intervalCategoryOther").value = i.category;
+  } else {
+    document.getElementById("intervalCategoryOther").value = "";
+  }
+  toggleIntervalCategoryOther();
+  document.getElementById("intervalMiles").value = i.interval_miles ?? "";
+  document.getElementById("intervalDays").value = i.interval_days ?? "";
+  document.getElementById("intervalSmogDays").value = i.smog_interval_days ?? "";
+  document.getElementById("intervalVehicle").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 document.getElementById("addIntervalBtn").addEventListener("click", async () => {
