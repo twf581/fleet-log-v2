@@ -65,6 +65,16 @@
   .checkbox-row { display: flex; align-items: center; font-size: 14px; color: var(--text); margin: 4px 0 14px; font-weight: 400; }
   .stop-card { background: #FAFAFA; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
   .stop-card strong { font-size: 14px; }
+  .day-log-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+  .day-log-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 6px; }
+  .day-log-head .day-log-date { font-size: 15px; font-weight: 600; }
+  .day-log-head .day-log-miles { font-size: 13px; color: #555; }
+  .day-log-actions { display: flex; gap: 6px; }
+  .day-log-actions button { padding: 6px 10px; font-size: 12px; width: auto; margin: 0; }
+  .day-log-stops { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+  .day-log-stops ol { margin: 0; padding-left: 18px; }
+  .day-log-stops li { font-size: 13px; margin-bottom: 4px; }
+  .day-log-stops .stop-purpose { color: #888; }
   .dvir-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .dvir-item:last-child { border-bottom: none; }
   .dvir-label { font-size: 14px; flex: 1; }
@@ -340,10 +350,8 @@
 
       <div class="card">
         <h2 style="margin-top:0;">Recent Days</h2>
-        <table id="recentMileageTable">
-          <thead><tr><th>Date</th><th>Vehicle</th><th>Miles</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
+        <p class="muted">Every stop you logged that day shows here automatically — nothing to click.</p>
+        <div id="recentMileageList"></div>
       </div>
     </div>
 
@@ -1538,16 +1546,60 @@ async function loadRecentMileageLogs() {
     .eq("employee_id", currentEmployee.id)
     .order("log_date", { ascending: false })
     .limit(7);
-  const tbody = document.querySelector("#recentMileageTable tbody");
-  tbody.innerHTML = "";
-  (logs || []).forEach((l) => {
-    const miles = l.end_mileage != null ? `${l.start_mileage} → ${l.end_mileage}` : `${l.start_mileage} → (not finished)`;
-    const tr = document.createElement("tr");
-    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-log="${l.id}">Delete</button>` : "";
-    tr.innerHTML = `<td>${l.log_date}</td><td>${l.vehicles?.unit_id || ""}</td><td>${miles}</td><td><button class="secondary" data-edit-log="${l.id}">Edit</button> ${delBtn}</td>`;
-    tbody.appendChild(tr);
+  const listEl = document.getElementById("recentMileageList");
+  listEl.innerHTML = "";
+
+  if (!logs || !logs.length) {
+    listEl.innerHTML = `<p class="muted">No days logged yet.</p>`;
+    return;
+  }
+
+  // One batch query for every stop across all the days shown, instead of
+  // one query per day — grouped below by mileage_log_id.
+  const logIds = logs.map((l) => l.id);
+  const { data: allStops } = await sb
+    .from("mileage_log_stops")
+    .select("*")
+    .in("mileage_log_id", logIds)
+    .order("stop_order");
+  const stopsByLog = {};
+  (allStops || []).forEach((s) => {
+    (stopsByLog[s.mileage_log_id] ||= []).push(s);
   });
-  tbody.querySelectorAll("[data-edit-log]").forEach((btn) => {
+
+  logs.forEach((l) => {
+    const miles = l.end_mileage != null ? `${l.start_mileage} → ${l.end_mileage}` : `${l.start_mileage} → (not finished)`;
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-log="${l.id}">Delete</button>` : "";
+    const stops = stopsByLog[l.id] || [];
+    const stopsHtml = stops.length
+      ? `<ol>${stops.map((s) => `
+          <li>
+            <strong>${s.stop_name || "(no name)"}</strong>
+            ${[s.address, s.city].filter(Boolean).length ? ` — ${[s.address, s.city].filter(Boolean).join(", ")}` : ""}
+            ${s.purpose ? `<span class="stop-purpose"> — ${s.purpose}</span>` : ""}
+          </li>`).join("")}</ol>`
+      : `<p class="muted" style="margin:0;">No stops logged this day.</p>`;
+
+    const card = document.createElement("div");
+    card.className = "day-log-card";
+    card.innerHTML = `
+      <div class="day-log-head">
+        <div>
+          <span class="day-log-date">${l.log_date}</span>
+          <span class="muted"> — ${l.vehicles?.unit_id || ""}</span>
+        </div>
+        <div class="day-log-miles">${miles} mi</div>
+        <div class="day-log-actions">
+          <button class="secondary" data-edit-log="${l.id}">Edit</button>
+          ${delBtn}
+        </div>
+      </div>
+      <div class="day-log-stops">${stopsHtml}</div>
+    `;
+    listEl.appendChild(card);
+  });
+
+  listEl.querySelectorAll("[data-edit-log]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const { data: log } = await sb.from("mileage_logs").select("*").eq("id", btn.dataset.editLog).single();
       if (!log) return;
@@ -1559,7 +1611,7 @@ async function loadRecentMileageLogs() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   });
-  tbody.querySelectorAll("[data-del-log]").forEach((btn) => {
+  listEl.querySelectorAll("[data-del-log]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (!confirm("Delete this mileage log entry? This cannot be undone.")) return;
       await sb.from("mileage_logs").delete().eq("id", btn.dataset.delLog);
