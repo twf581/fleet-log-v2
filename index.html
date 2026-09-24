@@ -1591,6 +1591,10 @@ document.getElementById("addStopBtn").addEventListener("click", async () => {
 document.getElementById("saveMileageLogBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("mileageEditMsg");
   const endMileage = document.getElementById("mileageEndInput").value.trim();
+  // Captured before refreshMileageEditorForToday() below can replace
+  // activeMileageLog, so we can still tell afterward which day this save
+  // was actually for.
+  const savedLogDate = activeMileageLog.log_date;
 
   const { error } = await sb
     .from("mileage_logs")
@@ -1602,10 +1606,23 @@ document.getElementById("saveMileageLogBtn").addEventListener("click", async () 
     .eq("id", activeMileageLog.id);
   if (error) { showMsg(msgEl, error.message, "error"); return; }
 
-  showMsg(msgEl, "Saved.", "ok");
   loadDashboard();
   loadVehicles();
   loadRecentMileageLogs();
+
+  // Fixed 9/24/2026: saving used to just leave whatever day's form was
+  // already on screen sitting there. If that was an earlier, unfinished
+  // day opened via Edit under Recent Days, there was no way to get back
+  // to a fresh Start Today's Log form except logging out and back in -
+  // switching tabs doesn't re-check the Mileage tab's state on its own.
+  // Re-running the same today-lookup used at login/vehicle-change moves
+  // straight into starting the new day right after saving the old one.
+  await refreshMileageEditorForToday();
+  if (savedLogDate === todayStr()) {
+    showMsg(document.getElementById("mileageEditMsg"), "Saved.", "ok");
+  } else {
+    showMsg(document.getElementById("mileageStartMsg"), `${savedLogDate} saved. Start today's log below.`, "ok");
+  }
 });
 
 async function loadRecentMileageLogs() {
