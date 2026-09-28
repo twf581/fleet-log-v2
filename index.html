@@ -1479,16 +1479,40 @@ async function refreshMileageEditorForToday() {
     await showMileageEditor();
   } else {
     activeMileageLog = null;
-    showMileageStartForm();
+    await showMileageStartForm();
   }
 }
 
-function showMileageStartForm() {
+async function showMileageStartForm() {
   document.getElementById("mileageStartCard").hidden = false;
   document.getElementById("mileageEditCard").hidden = true;
   const sel = document.getElementById("mileageVehicle");
   const opt = sel.options[sel.selectedIndex];
-  document.getElementById("mileageStartInput").value = opt?.dataset.currentMileage || "";
+
+  // Fixed 9/28/2026: this used to prefill from the vehicle's
+  // current_mileage, which also gets touched by fuel fill-up odometer
+  // readings - so a fuel stop logged after the day's driving was done
+  // (a lower reading than the actual end-of-day mileage) could overwrite
+  // it and hand out a starting mileage that was too low the next time a
+  // day was started. Pull the vehicle's own last COMPLETED mileage log
+  // instead - that's the actual source of truth for "yesterday's ending
+  // mileage," independent of who drove it or when fuel was logged - and
+  // only fall back to current_mileage for a vehicle that's never had a
+  // mileage log started at all (e.g. brand new to the fleet).
+  let prefill = opt?.dataset.currentMileage || "";
+  if (mileageVehicleId) {
+    const { data: lastLog } = await sb
+      .from("mileage_logs")
+      .select("end_mileage, log_date")
+      .eq("vehicle_id", mileageVehicleId)
+      .not("end_mileage", "is", null)
+      .order("log_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (lastLog?.end_mileage != null) prefill = lastLog.end_mileage;
+  }
+
+  document.getElementById("mileageStartInput").value = prefill;
   showMsg(document.getElementById("mileageStartMsg"), "", "");
 }
 
