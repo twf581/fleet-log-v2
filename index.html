@@ -1,5 +1,5 @@
 <!--
-  BUILD VERSION: 2 (2026-10-04) - bumped by 1 on every update Claude
+  BUILD VERSION: 3 (2026-10-04) - bumped by 1 on every update Claude
   delivers from here on, so the file name itself says which build it is
   and old ones can be kept around to roll back to if a new one ever has
   a bug. See the matching number in the delivered file name.
@@ -420,6 +420,8 @@
 
       <div class="card">
         <h2 style="margin-top:0;">Recent Purchases</h2>
+        <label>Search by Job Name/Number</label>
+        <input id="purchaseJobSearch" placeholder="e.g. Carol Harris, or I-46-1001" oninput="handlePurchaseJobSearchInput()" />
         <p class="muted" id="purchaseMonthTotal" style="margin-top:-6px;"></p>
         <table id="purchasesTable">
           <thead><tr><th>Date</th><th>Store</th><th>$</th><th>Receipt #</th><th>Job</th><th></th></tr></thead>
@@ -735,7 +737,7 @@
       <div class="card">
         <h2 style="margin-top:0;">Purchases</h2>
         <p>Tap Purchases to log a supply/material receipt — Home Depot, Lowe's, Sherwin-Williams Paint, Harbor Freight, or pick "Other" and type the store name in (it's remembered for next time). Fill in the date, amount, the ticket/receipt number if you have one, and which job it was for, then tap Save Purchase. This is separate from the Supplies tab below — Purchases is what you spent money on and where, Supplies is how many you have on hand.</p>
-        <p class="muted">The line under Recent Purchases totals up everything logged so far this calendar month, so you can see at a glance what's been spent on supplies.</p>
+        <p class="muted">The line under Recent Purchases totals up everything logged so far this calendar month. Type a job name or number into the search box to switch that to a total for just that job - every matching purchase, not only recent ones - handy when you're back in the owner's Repairs App filling in a quote's Material Cost and need to know exactly what was spent on it.</p>
       </div>
       <div class="card">
         <h2 style="margin-top:0;">Supplies</h2>
@@ -2119,19 +2121,42 @@ document.getElementById("addPurchaseBtn").addEventListener("click", async () => 
   populatePurchaseStoreList();
 });
 
-async function loadPurchaseHistory() {
-  const { data: purchases } = await sb
-    .from("purchases")
-    .select("*")
-    .order("log_date", { ascending: false })
-    .limit(30);
+// Added 10/4/2026: search by job name, for the exact moment this tab is
+// built for - going back into the owner's Repairs App later to fill in a
+// quote's Job Costing "Material Cost" field, and needing a quick total of
+// everything bought for that one job. Typing a job name here switches the
+// list from "last 30 purchases" to EVERY purchase matching that job (no
+// limit), with its own total at the top - a job that spanned purchases
+// from several weeks back shouldn't fall out of a recency window just
+// because this is the moment you actually need the real total.
+let purchaseJobSearchDebounce = null;
 
-  const monthPrefix = todayStr().slice(0, 7); // "YYYY-MM"
-  const monthTotal = (purchases || [])
-    .filter((p) => (p.log_date || "").startsWith(monthPrefix))
-    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  document.getElementById("purchaseMonthTotal").textContent =
-    monthTotal > 0 ? `This month so far: $${monthTotal.toFixed(2)}` : "";
+function handlePurchaseJobSearchInput() {
+  clearTimeout(purchaseJobSearchDebounce);
+  purchaseJobSearchDebounce = setTimeout(() => loadPurchaseHistory(), 250);
+}
+
+async function loadPurchaseHistory() {
+  const jobFilter = document.getElementById("purchaseJobSearch").value.trim();
+
+  let query = sb.from("purchases").select("*").order("log_date", { ascending: false });
+  query = jobFilter ? query.ilike("job_name", `%${jobFilter}%`) : query.limit(30);
+  const { data: purchases } = await query;
+
+  const totalEl = document.getElementById("purchaseMonthTotal");
+  if (jobFilter) {
+    const jobTotal = (purchases || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const count = (purchases || []).length;
+    totalEl.textContent = count
+      ? `Total for "${jobFilter}": $${jobTotal.toFixed(2)} across ${count} purchase${count === 1 ? "" : "s"}`
+      : `No purchases found for "${jobFilter}".`;
+  } else {
+    const monthPrefix = todayStr().slice(0, 7); // "YYYY-MM"
+    const monthTotal = (purchases || [])
+      .filter((p) => (p.log_date || "").startsWith(monthPrefix))
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    totalEl.textContent = monthTotal > 0 ? `This month so far: $${monthTotal.toFixed(2)}` : "";
+  }
 
   const tbody = document.querySelector("#purchasesTable tbody");
   tbody.innerHTML = "";
@@ -2159,6 +2184,7 @@ async function loadPurchaseHistory() {
 
 async function loadPurchasesTab() {
   document.getElementById("purchaseDate").value = todayStr();
+  document.getElementById("purchaseJobSearch").value = "";
   await populatePurchaseStoreList();
   await loadPurchaseHistory();
 }
