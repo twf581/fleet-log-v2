@@ -1,3 +1,9 @@
+<!--
+  BUILD VERSION: 2 (2026-10-04) - bumped by 1 on every update Claude
+  delivers from here on, so the file name itself says which build it is
+  and old ones can be kept around to roll back to if a new one ever has
+  a bug. See the matching number in the delivered file name.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -383,8 +389,40 @@
 
       <div class="card">
         <h2 style="margin-top:0;">Recent Fill-Ups</h2>
+        <p class="muted" id="fuelTrailingMpg" style="margin-top:-6px;"></p>
         <table id="fuelTable">
           <thead><tr><th>Date</th><th>$</th><th>Gal</th><th>Odometer</th><th>Approx MPG</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Purchases -->
+    <div id="tab-purchases" class="tab-panel" hidden>
+      <div class="card">
+        <h2 style="margin-top:0;" id="purchaseFormTitle">Log a Purchase</h2>
+        <div id="purchaseMsg"></div>
+        <label>Date</label>
+        <input id="purchaseDate" type="date" />
+        <label>Store</label>
+        <select id="purchaseStore"></select>
+        <input id="purchaseStoreOther" placeholder="Type the store name" hidden />
+        <label>Amount ($)</label>
+        <input id="purchaseAmount" inputmode="decimal" />
+        <label>Ticket / Receipt #</label>
+        <input id="purchaseReceiptNumber" />
+        <label>Job Name / Number</label>
+        <input id="purchaseJob" placeholder="e.g. Carol Harris, or I-46-1001" />
+        <label>Notes</label>
+        <input id="purchaseNotes" />
+        <button id="addPurchaseBtn" style="width:100%;">Save Purchase</button>
+        <button id="cancelPurchaseEditBtn" class="secondary" hidden type="button" style="width:100%;">Cancel</button>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Recent Purchases</h2>
+        <p class="muted" id="purchaseMonthTotal" style="margin-top:-6px;"></p>
+        <table id="purchasesTable">
+          <thead><tr><th>Date</th><th>Store</th><th>$</th><th>Receipt #</th><th>Job</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -695,6 +733,11 @@
         <p>Tap Power Tools and pick a Location at the top — a specific vehicle, or "Warehouse / Shop" for anything that isn't on a vehicle. Add a tool with a name, its serial number if it has one, and a status (OK, Needs Repair, or Missing/Lost). To change a tool's status later, just tap it right in the list and change it — no separate edit screen.</p>
       </div>
       <div class="card">
+        <h2 style="margin-top:0;">Purchases</h2>
+        <p>Tap Purchases to log a supply/material receipt — Home Depot, Lowe's, Sherwin-Williams Paint, Harbor Freight, or pick "Other" and type the store name in (it's remembered for next time). Fill in the date, amount, the ticket/receipt number if you have one, and which job it was for, then tap Save Purchase. This is separate from the Supplies tab below — Purchases is what you spent money on and where, Supplies is how many you have on hand.</p>
+        <p class="muted">The line under Recent Purchases totals up everything logged so far this calendar month, so you can see at a glance what's been spent on supplies.</p>
+      </div>
+      <div class="card">
         <h2 style="margin-top:0;">Supplies</h2>
         <p>Tap Supplies and pick a Location the same way. Add a supply with a name and how many you have — tap the quantity in the list any time to update it.</p>
         <p>Below that is the Restock List. If something's running low or you've used the last of it, add it here with how many you need and any notes — no need to know whether it should be reordered or is already sitting at the shop, that part's up to the admin. Once you add one, everyone can see it's on the list, so nobody adds the same thing twice.</p>
@@ -822,6 +865,7 @@ async function afterLogin() {
   loadEquipment();
   loadMileageTab();
   loadFuelTab();
+  loadPurchasesTab();
   loadMaintTab();
   loadInspectionsTab();
   loadToolsTab();
@@ -844,6 +888,7 @@ const ALL_TABS = [
   { id: "vehicles", label: "Vehicles", adminOnly: false },
   { id: "equipment", label: "Equipment", adminOnly: false },
   { id: "fuel", label: "Fuel", adminOnly: false },
+  { id: "purchases", label: "Purchases", adminOnly: false },
   { id: "maintenance", label: "Maintenance", adminOnly: false },
   { id: "inspections", label: "Inspections", adminOnly: false },
   { id: "hos", label: "Hours of Service", adminOnly: false },
@@ -1860,6 +1905,35 @@ document.getElementById("addFuelBtn").addEventListener("click", async () => {
   populateFuelVehicleSelect();
 });
 
+// Added 9/28/2026: the per-row Approx MPG column (from the
+// fuel_logs_with_mpg view) is a straight odometer-diff between two
+// CONSECUTIVE fill-ups, so any single close-together pair - two pump
+// transactions that should have been combined into one entry, or a fill-up
+// logged only a few miles after the last one - produces a meaningless
+// number (0.5 MPG, 0.1 MPG, etc). Averaging across a longer stretch of
+// fill-ups instead of one adjacent pair smooths that out, the same way
+// real fuel economy is usually judged over a tank or two, not one stop to
+// the next. fillsDescending is what loadFuelTable() already fetched
+// (newest first), so this doesn't need its own database query.
+function computeTrailingMpg(fillsDescending) {
+  const usable = fillsDescending.filter((f) => f.odometer != null && f.gallons != null && Number(f.gallons) > 0);
+  if (usable.length < 2) return null;
+
+  // Oldest-to-newest, capped to a window of 6 rows (5 intervals) so one
+  // outlier from a while back doesn't keep dragging on a recent number.
+  const window = usable.slice(0, 6).slice().reverse();
+  const milesSpan = Number(window[window.length - 1].odometer) - Number(window[0].odometer);
+  // The oldest fill-up's own gallons refilled whatever was burned BEFORE
+  // this window, not during it - only the gallons purchased at every
+  // fill-up AFTER that first one represent fuel actually consumed across
+  // milesSpan (this assumes each fill-up tops the tank off, same
+  // assumption the per-row Approx MPG column already makes).
+  const gallonsSum = window.slice(1).reduce((sum, f) => sum + Number(f.gallons || 0), 0);
+  if (milesSpan <= 0 || gallonsSum <= 0) return null;
+
+  return { mpg: milesSpan / gallonsSum, fillUpCount: window.length };
+}
+
 async function loadFuelTable() {
   if (!fuelVehicleId) return;
   const { data: fills } = await sb
@@ -1868,6 +1942,13 @@ async function loadFuelTable() {
     .eq("vehicle_id", fuelVehicleId)
     .order("log_date", { ascending: false })
     .limit(7);
+
+  const trailingEl = document.getElementById("fuelTrailingMpg");
+  const trailing = computeTrailingMpg(fills || []);
+  trailingEl.textContent = trailing
+    ? `Trailing average (last ${trailing.fillUpCount} fill-ups): ${trailing.mpg.toFixed(1)} MPG — averaged over a longer stretch, so one short gap between fill-ups doesn't throw it off.`
+    : "";
+
   const tbody = document.querySelector("#fuelTable tbody");
   tbody.innerHTML = "";
   (fills || []).forEach((f) => {
@@ -1891,6 +1972,195 @@ async function loadFuelTable() {
       loadDashboard();
     });
   });
+}
+
+// ---------------------------------------------------------------------------
+// PURCHASES — supply/material receipts (Home Depot, Lowe's, paint, etc.).
+// Added 10/4/2026. Deliberately standalone, not tied to a vehicle/location
+// like Fuel/Power Tools/Supplies are, and separate from the Supplies tab
+// above (that one tracks on-hand inventory counts, not what was spent) -
+// this is just a running list of what was bought: date, store, amount,
+// receipt #, and which job it was for, same idea as logging a fill-up.
+// ---------------------------------------------------------------------------
+const PURCHASE_STORES = [
+  "Home Depot",
+  "Lowe's",
+  "Sherwin-Williams Paint",
+  "Harbor Freight",
+];
+
+async function populatePurchaseStoreList() {
+  const sel = document.getElementById("purchaseStore");
+  const previousValue = sel.value;
+  sel.innerHTML = "";
+
+  const seen = new Set();
+  PURCHASE_STORES.forEach((store) => {
+    seen.add(store);
+    const opt = document.createElement("option");
+    opt.value = store;
+    opt.textContent = store;
+    sel.appendChild(opt);
+  });
+
+  // Also include any store typed in under "Other" in the past, so it's
+  // pickable again later without retyping - appended after the standard
+  // list rather than replacing it (same idea as Maintenance categories).
+  const { data: purchases } = await sb.from("purchases").select("store");
+  (purchases || []).forEach((row) => {
+    if (!row.store || seen.has(row.store)) return;
+    seen.add(row.store);
+    const opt = document.createElement("option");
+    opt.value = row.store;
+    opt.textContent = row.store;
+    sel.appendChild(opt);
+  });
+
+  const otherOpt = document.createElement("option");
+  otherOpt.value = "__other__";
+  otherOpt.textContent = "Other (type a store name)";
+  sel.appendChild(otherOpt);
+
+  if (previousValue && seen.has(previousValue)) sel.value = previousValue;
+  togglePurchaseStoreOther();
+}
+
+function togglePurchaseStoreOther() {
+  const isOther = document.getElementById("purchaseStore").value === "__other__";
+  document.getElementById("purchaseStoreOther").hidden = !isOther;
+}
+
+document.getElementById("purchaseStore").addEventListener("change", togglePurchaseStoreOther);
+
+let editingPurchaseId = null;
+
+function startEditPurchase(p) {
+  editingPurchaseId = p.id;
+  document.getElementById("purchaseFormTitle").textContent = "Edit Purchase";
+  document.getElementById("purchaseStore").value = p.store;
+  // If this purchase's store isn't one of the current dropdown options (an
+  // old one-off "Other" entry), fall back to "Other" and put it in the text box.
+  if (document.getElementById("purchaseStore").value !== p.store) {
+    document.getElementById("purchaseStore").value = "__other__";
+    document.getElementById("purchaseStoreOther").value = p.store;
+  } else {
+    document.getElementById("purchaseStoreOther").value = "";
+  }
+  togglePurchaseStoreOther();
+  document.getElementById("purchaseDate").value = p.log_date || "";
+  document.getElementById("purchaseAmount").value = p.amount ?? "";
+  document.getElementById("purchaseReceiptNumber").value = p.receipt_number || "";
+  document.getElementById("purchaseJob").value = p.job_name || "";
+  document.getElementById("purchaseNotes").value = p.notes || "";
+  document.getElementById("addPurchaseBtn").textContent = "Save Changes";
+  document.getElementById("cancelPurchaseEditBtn").hidden = false;
+  document.getElementById("purchaseFormTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditPurchase() {
+  editingPurchaseId = null;
+  document.getElementById("purchaseFormTitle").textContent = "Log a Purchase";
+  document.getElementById("purchaseStoreOther").value = "";
+  document.getElementById("purchaseAmount").value = "";
+  document.getElementById("purchaseReceiptNumber").value = "";
+  document.getElementById("purchaseJob").value = "";
+  document.getElementById("purchaseNotes").value = "";
+  document.getElementById("purchaseDate").value = todayStr();
+  document.getElementById("addPurchaseBtn").textContent = "Save Purchase";
+  document.getElementById("cancelPurchaseEditBtn").hidden = true;
+  togglePurchaseStoreOther();
+  showMsg(document.getElementById("purchaseMsg"), "", "");
+}
+
+document.getElementById("cancelPurchaseEditBtn").addEventListener("click", cancelEditPurchase);
+
+document.getElementById("addPurchaseBtn").addEventListener("click", async () => {
+  const msgEl = document.getElementById("purchaseMsg");
+  const selected = document.getElementById("purchaseStore").value;
+  const store = selected === "__other__"
+    ? document.getElementById("purchaseStoreOther").value.trim()
+    : selected;
+  const logDate = document.getElementById("purchaseDate").value;
+  const amount = document.getElementById("purchaseAmount").value.trim();
+  if (!store || !logDate || !amount) {
+    showMsg(msgEl, "Store, date, and amount are all required.", "error");
+    return;
+  }
+
+  const record = {
+    log_date: logDate,
+    store,
+    amount,
+    receipt_number: document.getElementById("purchaseReceiptNumber").value.trim() || null,
+    job_name: document.getElementById("purchaseJob").value.trim() || null,
+    notes: document.getElementById("purchaseNotes").value.trim() || null,
+  };
+
+  if (editingPurchaseId) {
+    const { error } = await sb.from("purchases").update(record).eq("id", editingPurchaseId);
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Purchase updated.", "ok");
+    cancelEditPurchase();
+  } else {
+    const { error } = await sb.from("purchases").insert({
+      org_id: ORG_ID,
+      employee_id: currentEmployee.id,
+      ...record,
+    });
+    if (error) { showMsg(msgEl, error.message, "error"); return; }
+    showMsg(msgEl, "Purchase saved.", "ok");
+    document.getElementById("purchaseAmount").value = "";
+    document.getElementById("purchaseReceiptNumber").value = "";
+    document.getElementById("purchaseJob").value = "";
+    document.getElementById("purchaseNotes").value = "";
+    document.getElementById("purchaseDate").value = todayStr();
+  }
+  loadPurchaseHistory();
+  populatePurchaseStoreList();
+});
+
+async function loadPurchaseHistory() {
+  const { data: purchases } = await sb
+    .from("purchases")
+    .select("*")
+    .order("log_date", { ascending: false })
+    .limit(30);
+
+  const monthPrefix = todayStr().slice(0, 7); // "YYYY-MM"
+  const monthTotal = (purchases || [])
+    .filter((p) => (p.log_date || "").startsWith(monthPrefix))
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  document.getElementById("purchaseMonthTotal").textContent =
+    monthTotal > 0 ? `This month so far: $${monthTotal.toFixed(2)}` : "";
+
+  const tbody = document.querySelector("#purchasesTable tbody");
+  tbody.innerHTML = "";
+  (purchases || []).forEach((p) => {
+    const tr = document.createElement("tr");
+    const delBtn = currentEmployee.role === "admin" ? `<button class="danger" data-del-purchase="${p.id}">Delete</button>` : "";
+    tr.innerHTML = `<td>${p.log_date}</td><td>${p.store}</td><td>${p.amount}</td><td>${p.receipt_number ?? "—"}</td><td>${p.job_name ?? "—"}</td><td><button class="secondary" data-edit-purchase="${p.id}">Edit</button> ${delBtn}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("[data-edit-purchase]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = (purchases || []).find((x) => x.id === btn.dataset.editPurchase);
+      if (p) startEditPurchase(p);
+    });
+  });
+  tbody.querySelectorAll("[data-del-purchase]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this purchase? This cannot be undone.")) return;
+      await sb.from("purchases").delete().eq("id", btn.dataset.delPurchase);
+      if (editingPurchaseId === btn.dataset.delPurchase) cancelEditPurchase();
+      loadPurchaseHistory();
+    });
+  });
+}
+
+async function loadPurchasesTab() {
+  document.getElementById("purchaseDate").value = todayStr();
+  await populatePurchaseStoreList();
+  await loadPurchaseHistory();
 }
 
 // ---------------------------------------------------------------------------
