@@ -1,8 +1,14 @@
 <!--
-  BUILD VERSION: 3 (2026-10-04) - bumped by 1 on every update Claude
+  BUILD VERSION: 4 (2026-11-15) - bumped by 1 on every update Claude
   delivers from here on, so the file name itself says which build it is
   and old ones can be kept around to roll back to if a new one ever has
   a bug. See the matching number in the delivered file name.
+
+  Build 4: Mileage tab's "Start Today's Log" card now has its own Date
+  field, defaulting to today but changeable - so a missed day (one that
+  was never started at all, not just left unfinished) can be backfilled
+  instead of being stuck on today only. Picking a date that already has
+  a log opens it for editing instead of trying to start a duplicate.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -323,8 +329,11 @@
       </div>
 
       <div class="card" id="mileageStartCard" hidden>
-        <h2 style="margin-top:0;">Start Today's Log</h2>
+        <h2 style="margin-top:0;" id="mileageStartTitle">Start Today's Log</h2>
         <div id="mileageStartMsg"></div>
+        <label>Date</label>
+        <input id="mileageStartDate" type="date" />
+        <p class="muted" style="margin-top:-6px;">Missed a day? Change this to the day you missed — it doesn't have to be today.</p>
         <label>Starting Mileage</label>
         <input id="mileageStartInput" inputmode="numeric" />
         <button id="startMileageLogBtn" style="width:100%;">Start Today's Log</button>
@@ -1530,11 +1539,19 @@ async function refreshMileageEditorForToday() {
   }
 }
 
-async function showMileageStartForm() {
+async function showMileageStartForm(forDate) {
+  const dateStr = forDate || todayStr();
   document.getElementById("mileageStartCard").hidden = false;
   document.getElementById("mileageEditCard").hidden = true;
   const sel = document.getElementById("mileageVehicle");
   const opt = sel.options[sel.selectedIndex];
+
+  const dateInput = document.getElementById("mileageStartDate");
+  dateInput.max = todayStr();
+  dateInput.value = dateStr;
+  const isToday = dateStr === todayStr();
+  document.getElementById("mileageStartTitle").textContent = isToday ? "Start Today's Log" : `Start Log for ${dateStr}`;
+  document.getElementById("startMileageLogBtn").textContent = isToday ? "Start Today's Log" : "Start Log for This Date";
 
   // Fixed 9/28/2026: this used to prefill from the vehicle's
   // current_mileage, which also gets touched by fuel fill-up odometer
@@ -1546,6 +1563,12 @@ async function showMileageStartForm() {
   // mileage," independent of who drove it or when fuel was logged - and
   // only fall back to current_mileage for a vehicle that's never had a
   // mileage log started at all (e.g. brand new to the fleet).
+  //
+  // Updated 11/15/2026: now filtered to logs strictly BEFORE the date
+  // being started (not just the latest ever), so backfilling a missed
+  // day from a while back prefills from what was true at the start of
+  // THAT day, not from a more recent day that, relative to it, hasn't
+  // happened yet.
   let prefill = opt?.dataset.currentMileage || "";
   if (mileageVehicleId) {
     const { data: lastLog } = await sb
@@ -1553,6 +1576,7 @@ async function showMileageStartForm() {
       .select("end_mileage, log_date")
       .eq("vehicle_id", mileageVehicleId)
       .not("end_mileage", "is", null)
+      .lt("log_date", dateStr)
       .order("log_date", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1563,10 +1587,57 @@ async function showMileageStartForm() {
   showMsg(document.getElementById("mileageStartMsg"), "", "");
 }
 
+// Added 11/15/2026: picking a different date (to backfill a missed day)
+// used to have nowhere to go at all - there was no date field here. Now
+// that there is one, picking a date that already has a log for this
+// vehicle opens that log's editor instead of trying to start a duplicate.
+document.getElementById("mileageStartDate").addEventListener("change", async (e) => {
+  const chosen = e.target.value;
+  const msgEl = document.getElementById("mileageStartMsg");
+  if (!chosen || !mileageVehicleId) return;
+  if (chosen > todayStr()) {
+    showMsg(msgEl, "That's in the future — pick today or an earlier day.", "error");
+    await showMileageStartForm(todayStr());
+    return;
+  }
+  const { data: existing } = await sb
+    .from("mileage_logs")
+    .select("*")
+    .eq("employee_id", currentEmployee.id)
+    .eq("vehicle_id", mileageVehicleId)
+    .eq("log_date", chosen)
+    .maybeSingle();
+  if (existing) {
+    activeMileageLog = existing;
+    await showMileageEditor();
+    showMsg(document.getElementById("mileageEditMsg"), `${chosen} already has a log — opened it below instead of starting a new one.`, "ok");
+    return;
+  }
+  await showMileageStartForm(chosen);
+});
+
 document.getElementById("startMileageLogBtn").addEventListener("click", async () => {
   const msgEl = document.getElementById("mileageStartMsg");
+  const logDate = document.getElementById("mileageStartDate").value || todayStr();
   const startMileage = document.getElementById("mileageStartInput").value.trim();
+  if (!logDate) { showMsg(msgEl, "Pick a date.", "error"); return; }
+  if (logDate > todayStr()) { showMsg(msgEl, "That's in the future — pick today or an earlier day.", "error"); return; }
   if (!startMileage) { showMsg(msgEl, "Enter your starting mileage.", "error"); return; }
+
+  // Guards against starting a second log for a day that already has one
+  // (two taps, or it got created another way in the meantime) instead of
+  // letting the database reject it as a confusing raw error.
+  const { data: existingLog } = await sb
+    .from("mileage_logs")
+    .select("id")
+    .eq("employee_id", currentEmployee.id)
+    .eq("vehicle_id", mileageVehicleId)
+    .eq("log_date", logDate)
+    .maybeSingle();
+  if (existingLog) {
+    showMsg(msgEl, `${logDate} already has a log — edit it from Recent Days below.`, "error");
+    return;
+  }
 
   const { data, error } = await sb
     .from("mileage_logs")
@@ -1574,7 +1645,7 @@ document.getElementById("startMileageLogBtn").addEventListener("click", async ()
       org_id: ORG_ID,
       employee_id: currentEmployee.id,
       vehicle_id: mileageVehicleId,
-      log_date: todayStr(),
+      log_date: logDate,
       start_mileage: startMileage,
     })
     .select()
